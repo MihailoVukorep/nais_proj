@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     APP_NAME: str = "Mikroservis za Analizu Finansijskih Događaja"
     APP_VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8001
+    DEBUG: bool = True
+    
+    # Django API
+    DJANGO_API_URL: str = "http://localhost:8000"
     
     # CORS
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:8000"]

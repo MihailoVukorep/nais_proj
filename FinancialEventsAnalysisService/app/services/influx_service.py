@@ -14,14 +14,14 @@ class InfluxDBService:
     def __init__(self):
         """Inicijalizacija InfluxDB klijenta"""
         self.client = InfluxDBClient(
-            url=settings.influxdb_url,
-            token=settings.influxdb_token,
-            org=settings.influxdb_org
+            url=settings.INFLUXDB_URL,
+            token=settings.INFLUXDB_TOKEN,
+            org=settings.INFLUXDB_ORG
         )
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
         self.query_api = self.client.query_api()
-        self.bucket = settings.influxdb_bucket
-        self.org = settings.influxdb_org
+        self.bucket = settings.INFLUXDB_BUCKET
+        self.org = settings.INFLUXDB_ORG
     
     def write_dogadjaj(
         self, 
