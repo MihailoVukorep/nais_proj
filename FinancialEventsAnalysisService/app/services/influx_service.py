@@ -88,7 +88,8 @@ class InfluxDBService:
         """
         Analizira dnevni promet - ukupna suma uspešnih transakcija po danima
         
-        Flux upit: Izračunaj ukupnu suму svих uspešnih uplata za svaki dan u poslednjih 30 dana
+        Flux upit: Izračunaj ukupnu sumu svih uspešnih uplata za svaki dan u poslednjih 30 dana
+        Kombinuje filtriranje, grupisanje po danima, agregaciju (sum, count, mean) i sortiranje podataka
         """
         flux_query = f'''
 from(bucket: "{self.bucket}")
@@ -97,7 +98,10 @@ from(bucket: "{self.bucket}")
   |> filter(fn: (r) => r.tip_dogadjaja == "transakcija")
   |> filter(fn: (r) => r.status == "uspesna")
   |> filter(fn: (r) => r._field == "iznos")
+  |> group(columns: ["_time"], mode: "by")
   |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)
+  |> group()
+  |> sort(columns: ["_time"], desc: true)
   |> yield(name: "dnevni_promet")
         '''
         
@@ -110,6 +114,9 @@ from(bucket: "{self.bucket}")
                         "datum": record.get_time().strftime("%Y-%m-%d"),
                         "ukupan_iznos": record.get_value()
                     })
+            
+            # Sortiraj rezultate po datumu (najnoviji prvo)
+            data.sort(key=lambda x: x["datum"], reverse=True)
             return data
         except Exception as e:
             logger.error(f"Greška pri upitu dnevnog prometa: {str(e)}")
