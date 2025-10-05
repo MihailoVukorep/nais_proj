@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     
     # InfluxDB
     INFLUXDB_URL: str = "http://localhost:8086"
-    INFLUXDB_TOKEN: str = "moj-super-tajni-token-12345"
+    INFLUXDB_TOKEN: str = "my-super-secret-auth-token"
     INFLUXDB_ORG: str = "IIS_SUDPI"
     INFLUXDB_BUCKET: str = "finansijski_dogadjaji"
     

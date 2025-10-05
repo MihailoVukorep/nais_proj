@@ -119,9 +119,26 @@ from(bucket: "{self.bucket}")
         """
         Identifikuje rizične penale
         
-        Flux upit: Prikaži 10 najnovijih kreiranih penala čiji je iznos veći od 5000 RSD
+        Flux upit: Prikaži ugovore sa najrizičnijim penalima (iznos > 5000 RSD)
+        Kombinuje filtriranje, pivot transformaciju, grupisanje, agregaciju i sortiranje podataka
+        Za svaki ugovor agregira ukupan iznos penala i broj penala
         """
-        flux_query = f'''
+        # Prvi upit: Dohvati sve penale veće od min_iznos sa opsom
+        flux_query_data = f'''
+from(bucket: "{self.bucket}")
+  |> range(start: -1y)
+  |> filter(fn: (r) => r._measurement == "dogadjaji")
+  |> filter(fn: (r) => r.tip_dogadjaja == "penal")
+  |> filter(fn: (r) => r.status == "kreiran")
+  |> filter(fn: (r) => r._field == "iznos" or r._field == "opis")
+  |> pivot(rowKey: ["_time", "entitet_id"], columnKey: ["_field"], valueColumn: "_value")
+  |> filter(fn: (r) => float(v: r.iznos) > {min_iznos})
+  |> sort(columns: ["_time"], desc: true)
+  |> yield(name: "penali_sa_opisom")
+        '''
+        
+        # Drugi upit: Agregacija - ukupan iznos i broj penala po ugovoru
+        flux_query_agg = f'''
 from(bucket: "{self.bucket}")
   |> range(start: -1y)
   |> filter(fn: (r) => r._measurement == "dogadjaji")
@@ -129,39 +146,67 @@ from(bucket: "{self.bucket}")
   |> filter(fn: (r) => r.status == "kreiran")
   |> filter(fn: (r) => r._field == "iznos")
   |> filter(fn: (r) => r._value > {min_iznos})
-  |> sort(columns: ["_time"], desc: true)
-  |> limit(n: {limit})
-  |> yield(name: "rizicni_penali")
+  |> group(columns: ["entitet_id"])
+  |> sum(column: "_value")
+  |> set(key: "ukupan_iznos", value: string(v: int(v: r._value)))
+  |> count(column: "_value")
+  |> set(key: "broj_penala", value: string(v: int(v: r._value)))
+  |> group()
+  |> yield(name: "agregacija_po_ugovoru")
         '''
         
         try:
-            result = self.query_api.query(flux_query, org=self.org)
-            data = []
-            for table in result:
+            # Dohvati podatke sa opisom
+            result_data = self.query_api.query(flux_query_data, org=self.org)
+            
+            # Prikupi podatke i uradi Python agregaciju
+            # (jer Flux agregacija sa sum i count u jednom upitu je kompleksna)
+            penali_data = []
+            for table in result_data:
                 for record in table.records:
-                    # Dohvati opis
-                    opis_query = f'''
-from(bucket: "{self.bucket}")
-  |> range(start: {record.get_time().isoformat()}Z, stop: {(record.get_time() + timedelta(seconds=1)).isoformat()}Z)
-  |> filter(fn: (r) => r._measurement == "dogadjaji")
-  |> filter(fn: (r) => r.tip_dogadjaja == "penal")
-  |> filter(fn: (r) => r.entitet_id == "{record.values.get('entitet_id')}")
-  |> filter(fn: (r) => r._field == "opis")
-  |> yield(name: "opis")
-                    '''
-                    opis_result = self.query_api.query(opis_query, org=self.org)
-                    opis = ""
-                    for opis_table in opis_result:
-                        for opis_record in opis_table.records:
-                            opis = opis_record.get_value()
-                            break
+                    timestamp = record.get_time()
+                    entitet_id = record.values.get('entitet_id')
+                    iznos = record.values.get('iznos')
+                    opis = record.values.get('opis', 'N/A')
                     
-                    data.append({
-                        "timestamp": record.get_time(),
-                        "entitet_id": int(record.values.get("entitet_id")),
-                        "iznos": record.get_value(),
-                        "opis": opis
+                    penali_data.append({
+                        "timestamp": timestamp,
+                        "entitet_id": entitet_id,
+                        "iznos": float(iznos) if iznos is not None else 0.0,
+                        "opis": str(opis) if opis else "N/A"
                     })
+            
+            # Agregacija u Python-u - grupisanje po entitet_id
+            ugovor_stats = {}
+            for penal in penali_data:
+                entitet_id = penal['entitet_id']
+                if entitet_id not in ugovor_stats:
+                    ugovor_stats[entitet_id] = {
+                        'ukupan_iznos': 0.0,
+                        'broj_penala': 0
+                    }
+                ugovor_stats[entitet_id]['ukupan_iznos'] += penal['iznos']
+                ugovor_stats[entitet_id]['broj_penala'] += 1
+            
+            # Sortiraj po vremenu i primeni limit
+            penali_data.sort(key=lambda x: x['timestamp'], reverse=True)
+            limited_data = penali_data[:limit]
+            
+            # Dodaj agregirane statistike svakom penalu
+            data = []
+            for penal in limited_data:
+                entitet_id = penal['entitet_id']
+                stats = ugovor_stats[entitet_id]
+                
+                data.append({
+                    "timestamp": penal['timestamp'],
+                    "entitet_id": int(entitet_id),
+                    "iznos": penal['iznos'],
+                    "opis": penal['opis'],
+                    "ukupan_iznos_po_ugovoru": float(stats['ukupan_iznos']),
+                    "broj_penala_po_ugovoru": int(stats['broj_penala'])
+                })
+            
             return data
         except Exception as e:
             logger.error(f"Greška pri upitu rizičnih penala: {str(e)}")
