@@ -1,6 +1,6 @@
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from app.config.settings import settings
 from typing import List, Optional
@@ -115,7 +115,6 @@ from(bucket: "{self.bucket}")
                         "ukupan_iznos": record.get_value()
                     })
             
-            # Sortiraj rezultate po datumu (najnoviji prvo)
             data.sort(key=lambda x: x["datum"], reverse=True)
             return data
         except Exception as e:
@@ -130,7 +129,6 @@ from(bucket: "{self.bucket}")
         Kombinuje filtriranje, pivot transformaciju, grupisanje, agregaciju i sortiranje podataka
         Za svaki ugovor agregira ukupan iznos penala i broj penala
         """
-        # Prvi upit: Dohvati sve penale veće od min_iznos sa opsom
         flux_query_data = f'''
 from(bucket: "{self.bucket}")
   |> range(start: -1y)
@@ -144,7 +142,6 @@ from(bucket: "{self.bucket}")
   |> yield(name: "penali_sa_opisom")
         '''
         
-        # Drugi upit: Agregacija - ukupan iznos i broj penala po ugovoru
         flux_query_agg = f'''
 from(bucket: "{self.bucket}")
   |> range(start: -1y)
@@ -163,11 +160,8 @@ from(bucket: "{self.bucket}")
         '''
         
         try:
-            # Dohvati podatke sa opisom
             result_data = self.query_api.query(flux_query_data, org=self.org)
             
-            # Prikupi podatke i uradi Python agregaciju
-            # (jer Flux agregacija sa sum i count u jednom upitu je kompleksna)
             penali_data = []
             for table in result_data:
                 for record in table.records:
@@ -183,7 +177,7 @@ from(bucket: "{self.bucket}")
                         "opis": str(opis) if opis else "N/A"
                     })
             
-            # Agregacija u Python-u - grupisanje po entitet_id
+            # Agregacija po ugovoru
             ugovor_stats = {}
             for penal in penali_data:
                 entitet_id = penal['entitet_id']
@@ -274,7 +268,9 @@ union(tables: [penali, transakcije])
                     elif tip == "transakcija":
                         weekly_data[week_key]["broj_transakcija"] += count
             
-            return list(weekly_data.values())
+            # Sortiraj rezultate po nedelji (najnovije prvo)
+            sorted_data = sorted(weekly_data.values(), key=lambda x: x["nedelja"], reverse=True)
+            return sorted_data
         except Exception as e:
             logger.error(f"Greška pri uporednoj analizi: {str(e)}")
             raise
@@ -284,5 +280,4 @@ union(tables: [penali, transakcije])
         self.client.close()
 
 
-# Singleton instanca
 influx_service = InfluxDBService()
