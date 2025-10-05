@@ -34,12 +34,27 @@ class TransakcijaCreate(BaseModel):
     opis: Optional[str] = ""
 
 
+class TransakcijaUpdate(BaseModel):
+    """Model za ažuriranje transakcije"""
+    iznos: Optional[float] = None
+    status: Optional[Literal["na_cekanju", "uspesna", "neuspesna"]] = None
+    potvrda: Optional[str] = None
+    opis: Optional[str] = None
+
+
 class PenalCreate(BaseModel):
     """Model za kreiranje penala"""
     ugovor_id: int
     iznos: float
     razlog: str
     status: Literal["kreiran", "placen"] = "kreiran"
+
+
+class PenalUpdate(BaseModel):
+    """Model za ažuriranje penala"""
+    iznos: Optional[float] = None
+    razlog: Optional[str] = None
+    status: Optional[Literal["kreiran", "placen"]] = None
 
 
 class DnevniPrometResponse(BaseModel):

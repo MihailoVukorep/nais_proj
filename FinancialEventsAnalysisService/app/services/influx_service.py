@@ -84,6 +84,170 @@ class InfluxDBService:
             logger.error(f"Greška pri brisanju događaja: {str(e)}")
             raise
     
+    def get_dogadjaji_by_type(self, tip_dogadjaja: str, limit: int = 100) -> List[dict]:
+        """
+        Vraća događaje po tipu
+        
+        Args:
+            tip_dogadjaja: "transakcija" ili "penal"
+            limit: Maksimalan broj rezultata
+        """
+        flux_query = f'''
+from(bucket: "{self.bucket}")
+  |> range(start: -1y)
+  |> filter(fn: (r) => r._measurement == "dogadjaji")
+  |> filter(fn: (r) => r.tip_dogadjaja == "{tip_dogadjaja}")
+  |> filter(fn: (r) => r._field == "iznos" or r._field == "opis")
+  |> pivot(rowKey: ["_time", "entitet_id", "status"], columnKey: ["_field"], valueColumn: "_value")
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: {limit})
+  |> yield(name: "dogadjaji")
+        '''
+        
+        try:
+            result = self.query_api.query(flux_query, org=self.org)
+            data = []
+            for table in result:
+                for record in table.records:
+                    data.append({
+                        "timestamp": record.get_time(),
+                        "tip_dogadjaja": tip_dogadjaja,
+                        "entitet_id": int(record.values.get('entitet_id')),
+                        "status": record.values.get('status'),
+                        "iznos": float(record.values.get('iznos', 0)),
+                        "opis": str(record.values.get('opis', ''))
+                    })
+            return data
+        except Exception as e:
+            logger.error(f"Greška pri dohvatanju događaja po tipu: {str(e)}")
+            raise
+    
+    def get_dogadjaj_by_id(self, tip_dogadjaja: str, entitet_id: int) -> Optional[dict]:
+        """
+        Vraća jedan događaj po ID-u
+        
+        Args:
+            tip_dogadjaja: "transakcija" ili "penal"
+            entitet_id: ID faktore ili ugovora
+        """
+        flux_query = f'''
+from(bucket: "{self.bucket}")
+  |> range(start: -1y)
+  |> filter(fn: (r) => r._measurement == "dogadjaji")
+  |> filter(fn: (r) => r.tip_dogadjaja == "{tip_dogadjaja}")
+  |> filter(fn: (r) => r.entitet_id == "{entitet_id}")
+  |> filter(fn: (r) => r._field == "iznos" or r._field == "opis")
+  |> pivot(rowKey: ["_time", "status"], columnKey: ["_field"], valueColumn: "_value")
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: 1)
+  |> yield(name: "dogadjaj")
+        '''
+        
+        try:
+            result = self.query_api.query(flux_query, org=self.org)
+            for table in result:
+                for record in table.records:
+                    return {
+                        "timestamp": record.get_time(),
+                        "tip_dogadjaja": tip_dogadjaja,
+                        "entitet_id": entitet_id,
+                        "status": record.values.get('status'),
+                        "iznos": float(record.values.get('iznos', 0)),
+                        "opis": str(record.values.get('opis', ''))
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"Greška pri dohvatanju događaja po ID: {str(e)}")
+            raise
+    
+    def update_dogadjaj(
+        self, 
+        tip_dogadjaja: str, 
+        entitet_id: int, 
+        status: Optional[str] = None,
+        iznos: Optional[float] = None,
+        opis: Optional[str] = None
+    ) -> bool:
+        """
+        Ažurira događaj - tehnički briše stari i kreira novi sa istim entitet_id
+        
+        Args:
+            tip_dogadjaja: "transakcija" ili "penal"
+            entitet_id: ID faktore ili ugovora
+            status: Novi status (opciono)
+            iznos: Novi iznos (opciono)
+            opis: Novi opis (opciono)
+        """
+        try:
+            # Prvo dohvati postojeći događaj
+            existing = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+            if not existing:
+                logger.error(f"Događaj nije pronađen: {tip_dogadjaja} - {entitet_id}")
+                return False
+            
+            # Pripremi nove vrednosti
+            new_status = status if status is not None else existing['status']
+            new_iznos = iznos if iznos is not None else existing['iznos']
+            new_opis = opis if opis is not None else existing['opis']
+            
+            # Obriši stari zapis - InfluxDB ne podržava update, već delete + insert
+            timestamp = existing['timestamp']
+            delete_api = self.client.delete_api()
+            delete_api.delete(
+                start=timestamp,
+                stop=timestamp,
+                predicate=f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"',
+                bucket=self.bucket,
+                org=self.org
+            )
+            
+            # Upiši novi zapis
+            self.write_dogadjaj(
+                tip_dogadjaja=tip_dogadjaja,
+                status=new_status,
+                entitet_id=entitet_id,
+                iznos=new_iznos,
+                opis=new_opis
+            )
+            
+            logger.info(f"Uspešno ažuriran događaj: {tip_dogadjaja} - {entitet_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Greška pri ažuriranju događaja: {str(e)}")
+            raise
+    
+    def delete_dogadjaj_by_id(self, tip_dogadjaja: str, entitet_id: int) -> bool:
+        """
+        Briše događaj po ID-u
+        
+        Args:
+            tip_dogadjaja: "transakcija" ili "penal"
+            entitet_id: ID faktore ili ugovora
+        """
+        try:
+            # Prvo proveri da li događaj postoji
+            existing = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+            if not existing:
+                logger.warning(f"Događaj nije pronađen: {tip_dogadjaja} - {entitet_id}")
+                return False
+            
+            # Obriši događaj
+            timestamp = existing['timestamp']
+            delete_api = self.client.delete_api()
+            delete_api.delete(
+                start=timestamp,
+                stop=timestamp,
+                predicate=f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"',
+                bucket=self.bucket,
+                org=self.org
+            )
+            
+            logger.info(f"Uspešno obrisan događaj: {tip_dogadjaja} - {entitet_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Greška pri brisanju događaja: {str(e)}")
+            raise
+    
     def query_dnevni_promet(self, days: int = 30) -> List[dict]:
         """
         Analizira dnevni promet - ukupna suma uspešnih transakcija po danima
