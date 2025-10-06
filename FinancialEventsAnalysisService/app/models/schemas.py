@@ -78,3 +78,32 @@ class NedeljnaAnalizaResponse(BaseModel):
     nedelja: str
     broj_penala: int
     broj_transakcija: int
+
+
+# ===== MODELI ZA IZVEŠTAJE =====
+
+class IzvestajParametri(BaseModel):
+    """Parametri za generisanje izveštaja"""
+    # Prosta sekcija 1: Transakcije
+    transakcije_status: Optional[Literal["na_cekanju", "uspesna", "neuspesna"]] = None
+    transakcije_min_iznos: Optional[float] = None
+    transakcije_max_iznos: Optional[float] = None
+    
+    # Prosta sekcija 2: Penali
+    penali_status: Optional[Literal["kreiran", "placen"]] = None
+    penali_min_iznos: Optional[float] = None
+    
+    # Složena sekcija: Kompleksna analiza
+    dnevni_promet_days: int = Field(default=30, ge=1, le=365, description="Broj dana za dnevni promet")
+    uporedna_analiza_months: int = Field(default=3, ge=1, le=12, description="Broj meseci za uporednu analizu")
+    
+    # Opšti parametri
+    limit: int = Field(default=50, ge=1, le=500, description="Maksimalan broj zapisa u prostim sekcijama")
+
+
+class IzvestajResponse(BaseModel):
+    """Response nakon generisanja izveštaja"""
+    message: str
+    pdf_url: str
+    file_name: str
+    timestamp: datetime

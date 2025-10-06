@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from app.config.settings import settings
-from app.routes import dogadjaji, analize
+from app.routes import dogadjaji, analize, izvestaji
 
 # Logging konfiguracija
 logging.basicConfig(
@@ -29,6 +29,7 @@ app.add_middleware(
 # Registracija rutera
 app.include_router(dogadjaji.router, prefix=settings.API_PREFIX)
 app.include_router(analize.router, prefix=settings.API_PREFIX)
+app.include_router(izvestaji.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")
