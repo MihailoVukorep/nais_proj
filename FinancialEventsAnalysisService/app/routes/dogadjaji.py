@@ -254,3 +254,44 @@ async def obrisi_dogadjaje(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/compensate", response_model=dict)
+async def compensate_dogadjaj(
+    tip_dogadjaja: str = Query(..., description="Tip događaja: transakcija ili penal"),
+    entitet_id: int = Query(..., description="ID entiteta (faktura_id ili ugovor_id)")
+):
+    """
+    KOMPENZACIONI ENDPOINT ZA SAGA PATTERN
+    
+    Briše događaj iz InfluxDB (rollback operacija).
+    
+    Koristi se kada Oracle transakcija nije uspela i potreban je rollback InfluxDB zapisa.
+    
+    POST /api/dogadjaji/compensate?tip_dogadjaja=transakcija&entitet_id=123
+    """
+    try:
+        logger.info(f"KOMPENZACIJA: Brisanje {tip_dogadjaja} sa entitet_id={entitet_id}")
+        
+        success = influx_service.delete_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+        
+        if not success:
+            logger.warning(f"Nije pronađen događaj za kompenzaciju: {tip_dogadjaja}/{entitet_id}")
+            return {
+                "message": "Događaj nije pronađen (možda već obrisan)",
+                "compensated": False,
+                "tip_dogadjaja": tip_dogadjaja,
+                "entitet_id": entitet_id
+            }
+        
+        logger.info(f"KOMPENZACIJA USPEŠNA: {tip_dogadjaja}/{entitet_id}")
+        return {
+            "message": "Kompenzacija uspešna - događaj obrisan iz InfluxDB",
+            "compensated": True,
+            "tip_dogadjaja": tip_dogadjaja,
+            "entitet_id": entitet_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Greška pri kompenzaciji: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Kompenzacija neuspešna: {str(e)}")
