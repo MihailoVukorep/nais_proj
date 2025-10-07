@@ -79,9 +79,6 @@ class NedeljnaAnalizaResponse(BaseModel):
     broj_penala: int
     broj_transakcija: int
 
-
-# ===== MODELI ZA IZVEŠTAJE =====
-
 class IzvestajParametri(BaseModel):
     """Parametri za generisanje izveštaja"""
     # Prosta sekcija 1: Transakcije

@@ -44,13 +44,10 @@ class ReportService:
     def _register_fonts(self):
         """Registruje fontove koji podržavaju UTF-8 i srpsku latinicu"""
         try:
-            # DejaVu fontovi dolaze sa reportlab i podržavaju srpsku latinicu
             from reportlab.pdfbase.ttfonts import TTFont
             from reportlab.pdfbase import pdfmetrics
             
-            # Pokušaj sa DejaVu fontovima (podržavaju sve specijalne karaktere)
             try:
-                # Prvo pokušaj sa sistemskim putanjama (Linux/Docker)
                 pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
                 pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
                 logger.info("DejaVu fontovi uspešno registrovani (sistemski)")
@@ -77,7 +74,7 @@ class ReportService:
     
     def _setup_styles(self):
         """Postavlja stilove za PDF dokument sa podrškom za srpsku latinicu"""
-        # Naslov
+
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
