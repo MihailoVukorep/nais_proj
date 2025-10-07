@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: finansijski_influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=IIS_SUDPI
+      - DOCKER_INFLUXDB_INIT_BUCKET=finansijski_dogadjaji
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    networks:
+      - finansijski_network
+    restart: unless-stopped
+
+  finansijski_servis:
+    build: .
+    container_name: finansijski_api
+    ports:
+      - "8001:8001"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=my-super-secret-auth-token
+      - INFLUXDB_ORG=IIS_SUDPI
+      - INFLUXDB_BUCKET=finansijski_dogadjaji
+      - DJANGO_API_URL=http://host.docker.internal:8000
+    depends_on:
+      - influxdb
+    networks:
+      - finansijski_network
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+volumes:
+  influxdb_data:
+  influxdb_config:
+
+networks:
+  finansijski_network:
+    driver: bridge
