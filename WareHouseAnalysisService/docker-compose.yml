@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: skladiste_influxdb
+    ports:
+      - "8087:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=IIS_SUDPI
+      - DOCKER_INFLUXDB_INIT_BUCKET=skladisni_uslovi
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=warehouse-super-secret-auth-token
+    volumes:
+      - warehouse_influxdb_data:/var/lib/influxdb2
+      - warehouse_influxdb_config:/etc/influxdb2
+    networks:
+      - skladiste_network
+    restart: unless-stopped
+
+  skladiste_servis:
+    build: .
+    container_name: skladiste_api
+    ports:
+      - "8002:8002"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=warehouse-super-secret-auth-token
+      - INFLUXDB_ORG=IIS_SUDPI
+      - INFLUXDB_BUCKET=skladisni_uslovi
+      - DJANGO_API_URL=http://host.docker.internal:8000
+    depends_on:
+      - influxdb
+    networks:
+      - skladiste_network
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+
+volumes:
+  warehouse_influxdb_data:
+  warehouse_influxdb_config:
+
+networks:
+  skladiste_network:
+    driver: bridge
