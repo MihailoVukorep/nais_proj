@@ -14,4 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+# Postavlja Flask app environment
+ENV FLASK_APP=app.main:app
+ENV FLASK_ENV=development
+
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8002"]

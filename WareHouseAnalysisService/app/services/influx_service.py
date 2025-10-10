@@ -157,14 +157,14 @@ from(bucket: "{self.bucket}")
             logger.error(f"Greška pri složenom upitu 1: {str(e)}")
             raise
 
-    def query_complex_2_critical_conditions_aggregated(self, days: int = 7) -> List[dict]:
-        """SLOŽEN UPIT 2: Agregacija kritičnih uslova"""
+    def query_complex_2_critical_conditions_aggregated(self, days: int = 365) -> List[dict]:
+        """SLOŽEN UPIT 2: Agregacija kritičnih i rizičnih uslova"""
         flux_query = f'''
 temp_critical = from(bucket: "{self.bucket}")
   |> range(start: -{days}d)
   |> filter(fn: (r) => r._measurement == "merenja_temperatura")
   |> filter(fn: (r) => r._field == "vrednost")
-  |> filter(fn: (r) => r.status == "kritična")
+  |> filter(fn: (r) => r.status == "kritična" or r.status == "rizična")
   |> group(columns: ["skladiste_id"])
   |> count(column: "_value")
   |> set(key: "tip_merenja", value: "temperatura")
@@ -173,7 +173,7 @@ vlaz_critical = from(bucket: "{self.bucket}")
   |> range(start: -{days}d)
   |> filter(fn: (r) => r._measurement == "merenja_vlaznost")
   |> filter(fn: (r) => r._field == "vrednost")
-  |> filter(fn: (r) => r.status == "kritična")
+  |> filter(fn: (r) => r.status == "kritična" or r.status == "rizična")
   |> group(columns: ["skladiste_id"])
   |> count(column: "_value")
   |> set(key: "tip_merenja", value: "vlaznost")
@@ -195,23 +195,23 @@ union(tables: [temp_critical, vlaz_critical])
                     if skladiste_id not in warehouse_stats:
                         warehouse_stats[skladiste_id] = {
                             "skladiste_id": skladiste_id,
-                            "kriticni_temperatura": 0,
-                            "kriticni_vlaznost": 0,
-                            "ukupno_kriticnih": 0
+                            "problematicni_temperatura": 0,
+                            "problematicni_vlaznost": 0,
+                            "ukupno_problematicnih": 0
                         }
                     
                     if tip_merenja == "temperatura":
-                        warehouse_stats[skladiste_id]["kriticni_temperatura"] = broj_kriticnih
+                        warehouse_stats[skladiste_id]["problematicni_temperatura"] = broj_kriticnih
                     elif tip_merenja == "vlaznost":
-                        warehouse_stats[skladiste_id]["kriticni_vlaznost"] = broj_kriticnih
+                        warehouse_stats[skladiste_id]["problematicni_vlaznost"] = broj_kriticnih
                     
-                    warehouse_stats[skladiste_id]["ukupno_kriticnih"] = (
-                        warehouse_stats[skladiste_id]["kriticni_temperatura"] +
-                        warehouse_stats[skladiste_id]["kriticni_vlaznost"]
+                    warehouse_stats[skladiste_id]["ukupno_problematicnih"] = (
+                        warehouse_stats[skladiste_id]["problematicni_temperatura"] +
+                        warehouse_stats[skladiste_id]["problematicni_vlaznost"]
                     )
             
             sorted_data = sorted(warehouse_stats.values(), 
-                               key=lambda x: x["ukupno_kriticnih"], 
+                               key=lambda x: x["ukupno_problematicnih"], 
                                reverse=True)
             
             return sorted_data

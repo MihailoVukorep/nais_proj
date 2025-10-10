@@ -2,6 +2,8 @@
 
 Mikroservis za analizu skladišnih uslova koji prati i analizira temperaturu i vlažnost u skladištima kako bi identifikovao optimalne i kritične uslove čuvanja robe.
 
+**Framework**: Flask + Flasgger (Swagger) + InfluxDB
+
 ## 📊 Specifikacije baze podataka
 
 - **InfluxDB bucket**: `skladisni_uslovi`
@@ -44,11 +46,21 @@ GET /api/merenja/analize/senzori-ranking?days=14
 
 ## 🚀 Pokretanje
 
+### Flask lokalno
 ```bash
-# Kloniranje i setup
 cd WareHouseAnalysisService
+pip install -r requirements.txt
 
-# Docker pokretanje (preporučeno)
+# Postavi environment varijable
+$env:FLASK_APP="app.main"
+$env:FLASK_ENV="development"
+
+# Pokreni Flask
+python -m flask run --host=0.0.0.0 --port=8002
+```
+
+### Docker (preporučeno)
+```bash
 docker-compose up -d
 
 # Dodavanje test podataka (1000 temp + 1000 vlažnost po skladištu)
@@ -57,8 +69,9 @@ python seed_data.py
 ```
 
 **Pristup:**
-- API: http://localhost:8002/docs
-- InfluxDB: http://localhost:8087
+- **Flask API**: http://localhost:8002/
+- **Swagger UI**: http://localhost:8002/apidocs/
+- **InfluxDB**: http://localhost:8087
 
 ## 📈 Test podaci
 
@@ -68,6 +81,28 @@ Seed skripta generiše:
 - **Ukupno: 10000 merenja** u 60-dnevnom periodu
 - **Senzori**: Realistički ID-jevi po skladištu
 - **Lokacije**: Različite zone/sektori po skladištu
+
+## 🛠️ Tehnologije
+
+- **Flask 3.0.0**: Web framework
+- **Flasgger 0.9.7.1**: Swagger/OpenAPI dokumentacija
+- **Flask-CORS 4.0.0**: Cross-origin resource sharing
+- **InfluxDB 2.7**: Time-series baza podataka
+- **Docker**: Kontejnerizacija
+- **Python 3.11**: Runtime environment
+
+## 🔄 Konverzija sa FastAPI
+
+Ovaj servis je konvertovan sa **FastAPI** na **Flask**:
+
+| Aspect | FastAPI (staro) | Flask (novo) |
+|--------|----------------|--------------|
+| Framework | FastAPI + Uvicorn | Flask + Werkzeug |
+| Swagger | Automatski | Flasgger dekoratori |
+| Validacija | Pydantic automatski | Manualna validacija |
+| Rute | @router decorators | @bp.route decorators |
+| Async | async/await | Sinhronno |
+| Models | Pydantic BaseModel | Python dataclasses |
 
 ## 🔗 Integracija sa Oracle
 

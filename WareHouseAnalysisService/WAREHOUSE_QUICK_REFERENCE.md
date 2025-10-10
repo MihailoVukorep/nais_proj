@@ -4,6 +4,8 @@
 
 Ovaj mikroservis prati **temperaturu** i **vlažnost** u skladištima i pomaže da održimo optimalnu kvalitetu čuvanja robe.
 
+**Framework**: Flask + Flasgger (Swagger) + InfluxDB
+
 ## Optimalni uslovi
 
 ### Temperatura
@@ -16,62 +18,68 @@ Ovaj mikroservis prati **temperaturu** i **vlažnost** u skladištima i pomaže 
 - **Rizično**: <40% ili >60%
 - **Kritično**: <20% ili >80%
 
-## Osnovne operacije
+## API Endpoints
 
-### 1. Dodaj novo merenje
+### 1. Kreiraj merenje temperature
 ```http
-POST /api/uslovi/
-{
-  "skladiste_id": 1,
-  "temperatura": 22.5,
-  "vlaznost": 55.0,
-  "senzor_id": "TEMP_01",
-  "lokacija": "Zona A"
-}
+POST /api/merenja/temperatura?skladiste_id=1&temperatura=22.5&senzor_id=TEMP_01&lokacija=Zona A
 ```
 
-### 2. Vidi trenutne uslove
+### 2. Kreiraj merenje vlažnosti
 ```http
-GET /api/uslovi/?limit=50
+POST /api/merenja/vlaznost?skladiste_id=1&vlaznost=55.0&senzor_id=HUMID_01&lokacija=Zona A
 ```
 
-### 3. Vidi uslove u skladištu
+### 3. Vidi merenja temperature
 ```http
-GET /api/uslovi/skladiste/1?hours=24
+GET /api/merenja/temperatura?skladiste_id=1&limit=100
 ```
 
-### 4. Ažuriraj temperaturu
+### 4. Vidi merenja vlažnosti
 ```http
-PUT /api/uslovi/temperatura/1/TEMP_01
-{
-  "temperatura": 21.0
-}
+GET /api/merenja/vlaznost?skladiste_id=1&limit=100
 ```
 
-## Analize
-
-### Dnevni pregled
+### 5. Obriši merenje temperature
 ```http
-GET /api/analize/dnevni-uslovi?days=30&skladiste_id=1
+DELETE /api/merenja/temperatura/1/TEMP_01?timestamp=2024-01-01T12:00:00Z
 ```
 
-### Kritični uslovi
+### 6. Obriši merenje vlažnosti
 ```http
-GET /api/analize/kriticni-uslovi?days=7
+DELETE /api/merenja/vlaznost/1/HUMID_01?timestamp=2024-01-01T12:00:00Z
 ```
 
-### Preporuke za optimizaciju
+## Složeni upiti i analize
+
+### 1. Dnevne statistike po skladištu
 ```http
-GET /api/analize/optimizacija?skladiste_id=1&days=7
+GET /api/merenja/analize/dnevne-statistike?days=30
+```
+
+### 2. Agregacija kritičnih uslova
+```http
+GET /api/merenja/analize/kriticni-uslovi-agregacija?days=7
+```
+
+### 3. Ranking performansi senzora
+```http
+GET /api/merenja/analize/senzori-ranking?days=14
 ```
 
 ## Pokretanje
 
-### Lokalno
+### Lokalno sa Flask
 ```bash
 cd WareHouseAnalysisService
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+
+# Postavi environment varijable
+$env:FLASK_APP="app.main"
+$env:FLASK_ENV="development"
+
+# Pokreni Flask aplikaciju
+python -m flask run --host=0.0.0.0 --port=8002
 ```
 
 ### Docker
@@ -79,7 +87,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 docker-compose up -d
 ```
 
-Pristup: http://localhost:8002/docs
+**Pristup aplikaciji**: http://localhost:8002  
+**Swagger dokumentacija**: http://localhost:8002/apidocs/
+
+## Environment varijable
+
+```env
+INFLUXDB_URL=http://localhost:8087
+INFLUXDB_TOKEN=warehouse-super-secret-auth-token
+INFLUXDB_ORG=IIS_SUDPI
+INFLUXDB_BUCKET=skladisni_uslovi
+SECRET_KEY=dev-secret-key
+HOST=0.0.0.0
+PORT=8002
+```
 
 ## Test podaci
 
@@ -89,4 +110,14 @@ cd scripts
 python seed_data.py
 ```
 
-Ovo će kreirati 30 dana merenja za 3 različita skladišta.
+Ovo će kreirati 60 dana merenja za 5 različitih skladišta (1000 temperatura + 1000 vlažnosti merenja).
+
+## Flask vs FastAPI
+
+Ovaj servis je konvertovan sa **FastAPI** na **Flask + Flasgger**:
+- ✅ Flask aplikacija sa Blueprint arhitekturom
+- ✅ Flasgger za Swagger UI dokumentaciju  
+- ✅ Flask-CORS za cross-origin zahteve
+- ✅ Sinhronni request handling
+- ✅ Manual validacija parametara
+- ✅ Dataclass modeli umesto Pydantic
