@@ -250,6 +250,38 @@ from(bucket: "{self.bucket}")
             logger.error(f"Greška pri složenom upitu 3: {str(e)}")
             raise
 
+    # === IZVESTAJ ===
+
+    # === PROSTI UPITI ===
+
+    def query_simple_temperature_last_ndays(self, skladiste_id: int, days: int):
+        query = f'''
+        from(bucket: "{self.bucket}")
+          |> range(start: -{days}d)
+          |> filter(fn: (r) => r._measurement == "merenja_temperatura" and r.skladiste_id == "{skladiste_id}")
+          |> filter(fn: (r) => r._field == "vrednost")
+          |> keep(columns: ["_time", "_value"])
+        '''
+        result = self.query_api.query(org=self.org, query=query)
+        return [
+            {"time": record.get_time().isoformat(), "temperatura": record.get_value()}
+            for table in result for record in table.records
+        ]
+
+    def query_simple_humidity_last_ndays(self, skladiste_id: int, days: int):
+        query = f'''
+        from(bucket: "{self.bucket}")
+          |> range(start: -{days}d)
+          |> filter(fn: (r) => r._measurement == "merenja_vlaznost" and r.skladiste_id == "{skladiste_id}")
+          |> filter(fn: (r) => r._field == "vrednost")
+          |> keep(columns: ["_time", "_value"])
+        '''
+        result = self.query_api.query(org=self.org, query=query)
+        return [
+            {"time": record.get_time().isoformat(), "vlaznost": record.get_value()}
+            for table in result for record in table.records
+        ]
+
     def close(self):
         """Zatvara konekciju sa InfluxDB"""
         self.client.close()

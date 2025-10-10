@@ -1,9 +1,12 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime, timezone
 import requests
 from flasgger import swag_from
 from datetime import datetime
 from app.services.influx_service import influx_service
+import io
+import matplotlib.pyplot as plt
+from fpdf import FPDF 
 import logging
 
 bp = Blueprint('merenja', __name__)
@@ -719,3 +722,158 @@ def kreiraj_merenje_transakcija():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+#==== IZVEŠTAJI =====
+
+@bp.route("/izvestaji/generisi", methods=['GET'])
+@swag_from({
+    'tags': ['Izveštaji'],
+    'summary': 'Generisanje PDF izveštaja',
+    'description': 'Generiše PDF izveštaj sa prostim i složenim sekcijama na osnovu podataka iz InfluxDB.',
+    'parameters': [
+        {
+            'name': 'skladiste_id',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'default': 1,
+            'description': 'ID skladišta za prosti upit temperature (opciono)'
+        },
+        {
+            'name': 'days',
+            'in': 'query',
+            'type': 'integer',
+            'required': False,
+            'default': 30,
+            'description': 'Broj dana unazad za složeni upit dnevnih statistika'
+        }
+    ],
+    'produces': [
+        'application/pdf'
+    ],
+    'responses': {
+        200: {
+            'description': 'PDF izveštaj uspešno generisan',
+            'content': {
+                'application/pdf': {
+                    'schema': {
+                        'type': 'string',
+                        'format': 'binary'
+                    }
+                }
+            }
+        },
+        500: {
+            'description': 'Greška pri generisanju izveštaja'
+        }
+    }
+})
+def generisi_izvestaj():
+    try:
+        skladiste_id = request.args.get('skladiste_id', default=1, type=int)
+        days = request.args.get('days', default=30, type=int)
+
+        # === PROSTE SEKCIJE ===
+        podaci_temp = influx_service.query_simple_temperature_last_ndays(skladiste_id, days)
+        podaci_vlaz = influx_service.query_simple_humidity_last_ndays(skladiste_id, days)
+
+        # === SLOŽENA SEKCIJA ===
+        stats = influx_service.query_complex_1_daily_stats_by_warehouse(days)
+
+        # === GENERISANJE PDF-a ===
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+
+        # Naslov
+        pdf.cell(200, 10, txt="Izvestaj o merenjima skladista", ln=True, align="C")
+
+        # Prosta sekcija 1
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Prosta sekcija 1: Temperature (poslednjih {days} dana, skladiste {skladiste_id})", ln=True)
+        for red in podaci_temp:
+            pdf.cell(200, 8, txt=f"{red['time']} - {red['temperatura']}°C", ln=True)
+
+        # Prosta sekcija 2
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Prosta sekcija 2: Vlaznost (poslednjih {days} dana, skladiste {skladiste_id})", ln=True)
+        for red in podaci_vlaz:
+            pdf.cell(200, 8, txt=f"{red['time']} - {red['vlaznost']}%", ln=True)
+
+        # Složena sekcija
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Slozena sekcija - Slozeni upiti: Dnevne statistike po skladistu (poslednjih {days} dana)", ln=True)
+
+        # slozeni upit 1
+        if stats:
+            datumi = [s['datum'] for s in stats]
+            prosecne_temp = [s['prosecna_temperatura'] for s in stats if s['prosecna_temperatura'] is not None]
+
+            plt.figure(figsize=(6,4))
+            plt.plot(datumi[:len(prosecne_temp)], prosecne_temp, marker='o')
+            plt.title("Prosecna temperatura po danima")
+            plt.xlabel("Datum")
+            plt.ylabel("Temperatura (°C)")
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.savefig("stat.png")
+            plt.close()
+
+            pdf.image("stat.png", x=10, y=None, w=180)
+
+        # slozeni upit 2
+        kriticni = influx_service.query_complex_2_critical_conditions_aggregated(days)
+
+        if kriticni:
+            skladista = [str(x["skladiste_id"]) for x in kriticni]
+            ukupno = [x["ukupno_problematicnih"] for x in kriticni]
+            temp = [x["problematicni_temperatura"] for x in kriticni]
+            vlaz = [x["problematicni_vlaznost"] for x in kriticni]
+
+            x = range(len(skladista))
+            plt.figure(figsize=(8,5))
+            plt.bar(x, temp, width=0.4, label="Temperatura", color="red")
+            plt.bar(x, vlaz, width=0.4, bottom=temp, label="Vlažnost", color="blue")
+            plt.xticks(x, skladista)
+            plt.title("Problematični uslovi po skladištima")
+            plt.xlabel("Skladište")
+            plt.ylabel("Broj kritičnih/rizičnih merenja")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig("kriticni.png")
+            plt.close()
+
+            pdf.image("kriticni.png", x=10, y=None, w=180)
+
+        # slozeni upit 3
+        senzori = influx_service.query_complex_3_sensor_performance_ranking(days)
+
+        if senzori:
+            top10 = senzori[:10]
+            labels = [f"{s['senzor_id']} ({s['skladiste_id']})" for s in top10]
+            values = [s["broj_merenja"] for s in top10]
+
+            plt.figure(figsize=(8,5))
+            plt.barh(labels, values, color="green")
+            plt.title("Top 10 senzora po broju merenja")
+            plt.xlabel("Broj merenja")
+            plt.gca().invert_yaxis()  # da prvi bude gore
+            plt.tight_layout()
+            plt.savefig("senzori.png")
+            plt.close()
+
+            pdf.image("senzori.png", x=10, y=None, w=180)
+
+
+        # Vrati PDF kao fajl
+        pdf_bytes = bytes(pdf.output(dest='S'))
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name="izvestaj.pdf"
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
