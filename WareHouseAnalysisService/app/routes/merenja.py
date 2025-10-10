@@ -1,4 +1,6 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime, timezone
+import requests
 from flasgger import swag_from
 from datetime import datetime
 from app.services.influx_service import influx_service
@@ -657,4 +659,63 @@ def ranking_performansi_senzora():
         
     except Exception as e:
         logger.error(f"Greška pri ranking senzora: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
+
+# ===== TRANSAKCIJA ===== 
+
+@bp.route("/merenja/temperatura/transaction", methods=['POST'])
+@swag_from({
+    'tags': ['Transakcije'],
+    'summary': 'Transakcioni unos merenja temperature u Influx i Oracle',
+    'parameters': [
+        {'name': 'skladiste_id', 'in': 'query', 'type': 'integer', 'required': True},
+        {'name': 'temperatura', 'in': 'query', 'type': 'number', 'required': True},
+        {'name': 'senzor_id', 'in': 'query', 'type': 'string', 'required': True},
+        {'name': 'lokacija', 'in': 'query', 'type': 'string', 'required': True}
+    ],
+    'responses': {
+        201: {'description': 'Merenje uspešno upisano u obe baze'},
+        500: {'description': 'Greška i rollback izvršen'}
+    }
+})
+def kreiraj_merenje_transakcija():
+    try:
+        skladiste_id = int(request.args.get('skladiste_id'))
+        temperatura = float(request.args.get('temperatura'))
+        senzor_id = request.args.get('senzor_id')
+        lokacija = request.args.get('lokacija')
+
+        # UTC timestamp
+        timestamp = datetime.now(timezone.utc)
+
+        # 1. Upis u Influx
+        influx_service.write_merenje_temperature(
+            skladiste_id=skladiste_id,
+            temperatura=temperatura,
+            senzor_id=senzor_id,
+            lokacija=lokacija,
+            timestamp=timestamp
+        )
+
+        # 2. Poziv Django API-ja (Oracle)
+        payload = {
+            "skladiste_id": skladiste_id,
+            "vrednost": temperatura,
+            "vreme_merenja": timestamp.isoformat()
+        }
+        resp = requests.post("http://host.docker.internal:8000/api/temperatura/", json=payload)
+
+        if resp.status_code != 201:
+            # Rollback u Influx ako Oracle padne
+            influx_service.delete_merenje_temperature(
+                skladiste_id=skladiste_id,
+                senzor_id=senzor_id,
+                timestamp=timestamp
+            )
+            return jsonify({"error": "Oracle upis neuspešan, rollback Influx"}), 500
+
+        return jsonify({"message": "Merenje uspešno upisano u obe baze"}), 201
+
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
