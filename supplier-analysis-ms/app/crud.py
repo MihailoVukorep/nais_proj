@@ -616,19 +616,6 @@ def get_supplier_complaints(supplier_id: int) -> List[Dict[str, Any]]:
     result = neo4j_db.execute_read(query, {"supplier_id": supplier_id})
     return [record['c'] for record in result]
 
-def get_all_complaints() -> List[Dict[str, Any]]:
-    """
-    Get all complaints in the system
-    """
-    query = """
-    MATCH (c:Complaint)
-    RETURN c
-    ORDER BY c.reception_date DESC
-    """
-    neo4j_db = get_db()
-    result = neo4j_db.execute_read(query)
-    return [record['c'] for record in result]
-
 def get_supplier_certificates(supplier_id: int) -> List[Dict[str, Any]]:
     """
     Get all certificates for a supplier
@@ -639,19 +626,6 @@ def get_supplier_certificates(supplier_id: int) -> List[Dict[str, Any]]:
     """
     neo4j_db = get_db()
     result = neo4j_db.execute_read(query, {"supplier_id": supplier_id})
-    return [record['cert'] for record in result]
-
-def get_all_certificates() -> List[Dict[str, Any]]:
-    """
-    Get all certificates in the system
-    """
-    query = """
-    MATCH (cert:Certificate)
-    RETURN cert
-    ORDER BY cert.issue_date DESC
-    """
-    neo4j_db = get_db()
-    result = neo4j_db.execute_read(query)
     return [record['cert'] for record in result]
 
 # Complex Query 6: Advanced supplier performance analysis with multiple WITH clauses
