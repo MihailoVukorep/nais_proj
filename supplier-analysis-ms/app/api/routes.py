@@ -562,10 +562,9 @@ def generate_material_suppliers_report(material_name: str = Path(..., descriptio
 def generate_performance_trends_report():
     """Generate a comprehensive performance trends report"""
     
-    pdf_data = report_generator.generate_performance_trends_report()
-    
     try:
         # Generate the report
+        pdf_data = report_generator.generate_performance_trends_report()
         
         # Return the PDF
         return Response(
