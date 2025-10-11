@@ -15,7 +15,6 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 import os
 from dotenv import load_dotenv
 
-# Učitaj env varijable
 load_dotenv()
 
 # InfluxDB konfiguracija
@@ -32,15 +31,15 @@ DATUM_END = datetime.now()
 
 # Statusni transakcija i njihove verovatnoće
 TRANSAKCIJA_STATUSI = {
-    "uspesna": 0.75,      # 75% uspešnih
-    "neuspesna": 0.15,    # 15% neuspešnih
-    "na_cekanju": 0.10    # 10% na čekanju
+    "uspesna": 0.75, 
+    "neuspesna": 0.15, 
+    "na_cekanju": 0.10   
 }
 
 # Statusni penala
 PENAL_STATUSI = {
-    "kreiran": 0.70,      # 70% kreiranih
-    "placen": 0.30        # 30% plaćenih
+    "kreiran": 0.70,   
+    "placen": 0.30   
 }
 
 # Opsezi iznosa

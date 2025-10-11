@@ -32,10 +32,10 @@ def test_1_generiši_osnovni_izvestaj():
     print(f"Response: {json.dumps(response.json(), indent=2)}")
     
     if response.status_code == 200:
-        print("✅ TEST PROŠAO - Izveštaj uspešno generisan")
+        print("TEST PROŠAO - Izveštaj uspešno generisan")
         return response.json()
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return None
 
 
@@ -62,10 +62,10 @@ def test_2_generiši_filtrirani_izvestaj():
     print(f"Response: {json.dumps(response.json(), indent=2)}")
     
     if response.status_code == 200:
-        print("✅ TEST PROŠAO - Filtrirani izveštaj uspešno generisan")
+        print("TEST PROŠAO - Filtrirani izveštaj uspešno generisan")
         return response.json()
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return None
 
 
@@ -87,10 +87,10 @@ def test_3_quick_generate():
         filename = f"test_quick_generate_{int(time.time())}.pdf"
         with open(filename, 'wb') as f:
             f.write(response.content)
-        print(f"✅ TEST PROŠAO - PDF sačuvan kao: {filename}")
+        print(f"TEST PROŠAO - PDF sačuvan kao: {filename}")
         return True
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return False
 
 
@@ -107,15 +107,15 @@ def test_4_lista_izvestaja():
         print(f"Ukupno izveštaja: {data['ukupno']}")
         
         for izvestaj in data['izvestaji'][:5]:  # Prikaži prvih 5
-            print(f"\n  📄 {izvestaj['file_name']}")
-            print(f"     Veličina: {izvestaj['size_mb']} MB")
-            print(f"     Kreiran: {izvestaj['created_at']}")
-            print(f"     URL: {izvestaj['download_url']}")
+            print(f"\n{izvestaj['file_name']}")
+            print(f"Veličina: {izvestaj['size_mb']} MB")
+            print(f"Kreiran: {izvestaj['created_at']}")
+            print(f"URL: {izvestaj['download_url']}")
         
-        print("✅ TEST PROŠAO - Lista uspešno dohvaćena")
+        print("TEST PROŠAO - Lista uspešno dohvaćena")
         return data
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return None
 
 
@@ -136,10 +136,10 @@ def test_5_preuzimanje_izvestaja(file_name):
         local_filename = f"downloaded_{file_name}"
         with open(local_filename, 'wb') as f:
             f.write(response.content)
-        print(f"✅ TEST PROŠAO - PDF preuzet i sačuvan kao: {local_filename}")
+        print(f"TEST PROŠAO - PDF preuzet i sačuvan kao: {local_filename}")
         return True
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return False
 
 
@@ -155,10 +155,10 @@ def test_6_brisanje_izvestaja(file_name):
     print(f"Response: {json.dumps(response.json(), indent=2)}")
     
     if response.status_code == 200:
-        print("✅ TEST PROŠAO - Izveštaj uspešno obrisan")
+        print("TEST PROŠAO - Izveštaj uspešno obrisan")
         return True
     else:
-        print("❌ TEST FAILED")
+        print("TEST FAILED")
         return False
 
 
@@ -177,10 +177,10 @@ def test_7_validacija_parametara():
     
     if response.status_code == 422:  # Validation error
         print(f"Response: {json.dumps(response.json(), indent=2)}")
-        print("✅ TEST PROŠAO - Validacija radi ispravno")
+        print("TEST PROŠAO - Validacija radi ispravno")
         return True
     else:
-        print("❌ TEST FAILED - Očekivan status 422")
+        print("TEST FAILED - Očekivan status 422")
         return False
 
 
@@ -234,22 +234,22 @@ def run_all_tests():
     total = len(results)
     
     for name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
+        status = "PASS" if result else "FAIL"
         print(f"{status} - {name}")
     
     print(f"\nUkupno: {passed}/{total} testova prošlo")
     
     if passed == total:
-        print("\n🎉 SVI TESTOVI SU PROŠLI! 🎉")
+        print("\nSVI TESTOVI SU PROŠLI!")
     else:
-        print(f"\n⚠️  {total - passed} test(ova) nije prošlo")
+        print(f"\n{total - passed} test(ova) nije prošlo")
 
 
 if __name__ == "__main__":
     try:
         run_all_tests()
     except requests.exceptions.ConnectionError:
-        print("\n❌ GREŠKA: Nije moguće povezati se sa serverom!")
+        print("\nGREŠKA: Nije moguće povezati se sa serverom!")
         print("Proverite da li je servis pokrenut na http://localhost:8001")
     except Exception as e:
-        print(f"\n❌ GREŠKA: {str(e)}")
+        print(f"\nGREŠKA: {str(e)}")
