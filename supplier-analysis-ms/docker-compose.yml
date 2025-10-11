@@ -37,6 +37,8 @@ services:
         condition: service_healthy
     networks:
       - supplier_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   supplier_network:

@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import date, datetime
 from neo4j.time import Date as Neo4jDate
+import requests
 
 from app import crud
 from app.schemas import (
@@ -505,6 +506,33 @@ def generate_supplier_comparison_report_test(
         logging.error(f"Error generating supplier comparison report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating supplier comparison report: {str(e)}")
 
+
+
+DJANGO_API_URL = "http://host.docker.internal:8000/api/izvestaji/upload/"  # adjust as needed
+
+def send_izvestaj_dobavljaci_report(pdf_data: bytes, description: str = ""):
+    """
+    Sends the generated suppliers report (dobavljači) PDF to the Django app.
+    """
+    try:
+        files = {
+            "pdf_file": ("izvestaj_dobavljaci.pdf", pdf_data, "application/pdf")
+        }
+
+        data = {
+            "tip_i": "dobavljaci",
+            "sadrzaj_i": description or "Automatski generisan izveštaj o dobavljačima.",
+            "kreirao": 1,
+        }
+
+        response = requests.post(DJANGO_API_URL, data=data, files=files, timeout=15)
+        response.raise_for_status()
+        logging.info(f"Izvestaj successfully sent to Django: {response.status_code}")
+        return response.json()
+    except Exception as e:
+        logging.error(f"Failed to send Izvestaj to Django: {str(e)}")
+        return None
+
 @router.post("/reports/material", response_class=Response)
 def generate_material_suppliers_report_post(request: MaterialSuppliersReportRequest):
     """Generate a PDF report of all suppliers for a specific material (POST method for UTF-8 support)"""
@@ -521,6 +549,11 @@ def generate_material_suppliers_report_post(request: MaterialSuppliersReportRequ
         # Create a safe filename
         safe_filename = material_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
         safe_filename = ''.join(c for c in safe_filename if c.isalnum() or c in '_-.')
+        
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Izveštaj o dobavljačima za materijal '{material_name}'."
+        )
         
         # Return the PDF
         return Response(
