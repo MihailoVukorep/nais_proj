@@ -414,6 +414,34 @@ def get_material_market_dynamics():
         logging.error(f"Error analyzing material market dynamics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing material market dynamics: {str(e)}")
 
+
+
+DJANGO_API_URL = "http://host.docker.internal:8000/api/izvestaji/upload/"  # adjust as needed
+
+def send_izvestaj_dobavljaci_report(pdf_data: bytes, description: str = ""):
+    """
+    Sends the generated suppliers report (dobavljači) PDF to the Django app.
+    """
+    try:
+        files = {
+            "pdf_file": ("izvestaj_dobavljaci.pdf", pdf_data, "application/pdf")
+        }
+
+        data = {
+            "tip_i": "dobavljaci",
+            "sadrzaj_i": description or "Automatski generisan izveštaj o dobavljačima.",
+            "kreirao": 1,
+        }
+
+        response = requests.post(DJANGO_API_URL, data=data, files=files, timeout=15)
+        response.raise_for_status()
+        logging.info(f"Izvestaj successfully sent to Django: {response.status_code}")
+        return response.json()
+    except Exception as e:
+        logging.error(f"Failed to send Izvestaj to Django: {str(e)}")
+        return None
+    
+
 # Report endpoints
 @router.get("/reports/supplier/{supplier_id}", response_class=Response)
 def generate_supplier_report(supplier_id: int = Path(..., description="The ID of the supplier")):
@@ -426,6 +454,11 @@ def generate_supplier_report(supplier_id: int = Path(..., description="The ID of
             
         # Generate the report
         pdf_data = report_generator.generate_supplier_report(supplier_id)
+        
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Izveštaj za dobavljača '{supplier_id}'."
+        )
         
         # Return the PDF
         return Response(
@@ -463,6 +496,12 @@ def generate_supplier_comparison_report(request: SupplierComparisonRequest):
         # Generate the report with existing suppliers only
         pdf_data = report_generator.generate_supplier_comparison_report(existing_suppliers)
         
+        ids_str = str(supplier_ids)
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Poredjenje dobavljača '{ids_str}'."
+        )
+                
         # Return the PDF
         return Response(
             content=pdf_data,
@@ -494,6 +533,11 @@ def generate_supplier_comparison_report_test(
         # Generate the report
         pdf_data = report_generator.generate_supplier_comparison_report(supplier_ids)
         
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Poredjenje dva dobavljača '{supplier_id1} i {supplier_id2}'."
+        )
+                
         # Return the PDF
         return Response(
             content=pdf_data,
@@ -506,32 +550,6 @@ def generate_supplier_comparison_report_test(
         logging.error(f"Error generating supplier comparison report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating supplier comparison report: {str(e)}")
 
-
-
-DJANGO_API_URL = "http://host.docker.internal:8000/api/izvestaji/upload/"  # adjust as needed
-
-def send_izvestaj_dobavljaci_report(pdf_data: bytes, description: str = ""):
-    """
-    Sends the generated suppliers report (dobavljači) PDF to the Django app.
-    """
-    try:
-        files = {
-            "pdf_file": ("izvestaj_dobavljaci.pdf", pdf_data, "application/pdf")
-        }
-
-        data = {
-            "tip_i": "dobavljaci",
-            "sadrzaj_i": description or "Automatski generisan izveštaj o dobavljačima.",
-            "kreirao": 1,
-        }
-
-        response = requests.post(DJANGO_API_URL, data=data, files=files, timeout=15)
-        response.raise_for_status()
-        logging.info(f"Izvestaj successfully sent to Django: {response.status_code}")
-        return response.json()
-    except Exception as e:
-        logging.error(f"Failed to send Izvestaj to Django: {str(e)}")
-        return None
 
 @router.post("/reports/material", response_class=Response)
 def generate_material_suppliers_report_post(request: MaterialSuppliersReportRequest):
@@ -581,6 +599,11 @@ def generate_material_suppliers_report(material_name: str = Path(..., descriptio
         # Remove or replace other problematic characters
         safe_filename = ''.join(c for c in safe_filename if c.isalnum() or c in '_-.')
         
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Izveštaj o dobavljačima za materijal '{material_name}'."
+        )
+        
         # Return the PDF
         return Response(
             content=pdf_data,
@@ -599,6 +622,11 @@ def generate_performance_trends_report():
         # Generate the report
         pdf_data = report_generator.generate_performance_trends_report()
         
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Analiza trendova performansi dobavljača."
+        )
+                
         # Return the PDF
         return Response(
             content=pdf_data,
@@ -616,6 +644,11 @@ def generate_risk_analysis_report():
         # Generate the report
         pdf_data = report_generator.generate_risk_analysis_report()
         
+        send_izvestaj_dobavljaci_report(
+            pdf_data=pdf_data,
+            description=f"Analiza rizika dobavljača."
+        )
+                
         # Return the PDF
         return Response(
             content=pdf_data,
