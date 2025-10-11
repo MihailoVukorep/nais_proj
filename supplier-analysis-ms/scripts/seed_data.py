@@ -235,6 +235,8 @@ def create_certificates(suppliers, count_per_supplier=2):
 
 if __name__ == "__main__":
     try:
+        logger.info("Script: Starting data seeding...")
+        
         # Clear existing data
         clear_database()
         

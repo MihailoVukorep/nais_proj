@@ -83,6 +83,7 @@ def create_supplier(supplier_data: Dict[str, Any]) -> Dict[str, Any]:
         logging.error(f"Unexpected error creating supplier: {e}")
         raise ValueError(f"Error creating supplier: {e}")
 
+# in report
 def get_supplier(supplier_id: int) -> Dict[str, Any]:
     """
     Get a supplier by ID
@@ -457,6 +458,7 @@ def delete_certificate(certificate_id: int) -> bool:
     return True
 
 # Complex Query 1: Find alternative suppliers for a material
+# in report
 def find_alternative_suppliers(material_name: str, min_rating: float = 0.0) -> List[Dict[str, Any]]:
     """
     Find alternative suppliers for a specific material with rating above the threshold
@@ -475,6 +477,7 @@ def find_alternative_suppliers(material_name: str, min_rating: float = 0.0) -> L
     return [record['s'] for record in result]
 
 # Complex Query 2: Find suppliers with similar materials but better ratings
+# In report
 def find_better_suppliers(supplier_id: int, rating_increase: float = 1.0) -> List[Dict[str, Any]]:
     """
     Find suppliers that offer similar materials but have better ratings
@@ -604,6 +607,7 @@ def identify_supplier_risk_patterns() -> List[Dict[str, Any]]:
     result = neo4j_db.execute_read(query)
     return result
 
+# in report
 def get_supplier_complaints(supplier_id: int) -> List[Dict[str, Any]]:
     """
     Get all complaints for a supplier
@@ -616,6 +620,7 @@ def get_supplier_complaints(supplier_id: int) -> List[Dict[str, Any]]:
     result = neo4j_db.execute_read(query, {"supplier_id": supplier_id})
     return [record['c'] for record in result]
 
+# in report
 def get_supplier_certificates(supplier_id: int) -> List[Dict[str, Any]]:
     """
     Get all certificates for a supplier
