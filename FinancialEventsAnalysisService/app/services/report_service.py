@@ -324,17 +324,31 @@ class ReportService:
             fig, ax = plt.subplots(figsize=(10, 6))
             
             if chart_type == 'dnevni_promet':
-                # Grafikon za dnevni promet - ISPRAVLJENO
-                # Prikaži sve dostupne dane ili max 30
-                num_days = min(len(data), 30)
-                datumi = [d['datum'] for d in data[:num_days]]
-                iznosi = [d['ukupan_iznos'] for d in data[:num_days]]
+                # Grafikon za dnevni promet - ISPRAVLJENO sa pametnim grupisanjem datuma
+                # Ograničimo na maksimalno 20 dana za čitljivost
+                num_days = min(len(data), 20)
+                
+                # Sortiraj po datumu (najstariji prvi za grafikon)
+                sorted_data = sorted(data[:num_days], key=lambda x: x['datum'])
+                
+                datumi = [d['datum'] for d in sorted_data]
+                iznosi = [d['ukupan_iznos'] for d in sorted_data]
                 
                 ax.bar(datumi, iznosi, color='#2c5aa0', alpha=0.7)
                 ax.set_xlabel('Datum', fontsize=10)
                 ax.set_ylabel('Ukupan iznos (RSD)', fontsize=10)
                 ax.set_title(f'Dnevni promet - Agregacija uspešnih transakcija (poslednjih {num_days} dana)', fontsize=12, fontweight='bold')
-                plt.xticks(rotation=45, ha='right', fontsize=8)
+                
+                # Pametno formatiranje x-ose - prikaži svaki n-ti datum za čitljivost
+                if len(datumi) > 10:
+                    # Ako ima više od 10 datuma, prikaži svaki drugi
+                    step = 2
+                    ax.set_xticks(range(0, len(datumi), step))
+                    ax.set_xticklabels([datumi[i][-5:] for i in range(0, len(datumi), step)], rotation=45, ha='right', fontsize=8)  # Prikaži samo MM-DD
+                else:
+                    # Inače prikaži sve datume
+                    plt.xticks(rotation=45, ha='right', fontsize=8)
+                
                 plt.yticks(fontsize=8)
                 plt.grid(axis='y', alpha=0.3)
                 
@@ -519,6 +533,9 @@ class ReportService:
             rizicni = influx_service.query_rizicni_penali(min_iznos=5000, limit=10)
             
             if rizicni:
+                # PAGEBREAK da tabela ne prelazi na drugu stranu
+                elements.append(PageBreak())
+                
                 # Podsekcija naslov
                 subtitle3 = Paragraph("3.3 Rizični penali (Filtriranje, agregacija i sortiranje)", self.styles['Heading3'])
                 elements.append(subtitle3)
@@ -538,10 +555,10 @@ class ReportService:
                     elements.append(img)
                     elements.append(Spacer(1, 0.3*cm))
                 
-                # Tabela sa detaljima - ISPRAVLJENO
+                # Tabela sa detaljima - ISPRAVLJENO i optimizovano
                 # Podaci iz query_rizicni_penali već su agregisani po ugovoru
                 table_data = [
-                    ['Ugovor\nID', 'Ukupan iznos\npenala (RSD)', 'Broj\npenala', 'Poslednji razlog', 'Datum\nposlednjeg']
+                    ['Ugovor\nID', 'Ukupan iznos\n(RSD)', 'Broj\npenala', 'Poslednji razlog', 'Datum']
                 ]
                 
                 for r in rizicni[:10]:
@@ -557,11 +574,12 @@ class ReportService:
                         str(r['entitet_id']),
                         f"{r['ukupan_iznos_po_ugovoru']:,.2f}",
                         str(r['broj_penala_po_ugovoru']),
-                        r['poslednji_opis'][:40] + '...' if len(r['poslednji_opis']) > 40 else r['poslednji_opis'],
+                        r['poslednji_opis'][:35] + '...' if len(r['poslednji_opis']) > 35 else r['poslednji_opis'],
                         datum_str
                     ])
                 
-                table = Table(table_data, colWidths=[2*cm, 3*cm, 2*cm, 8*cm, 2.5*cm])
+                # Optimizovane širine kolona - ukupno 17.5cm (unutar margina)
+                table = Table(table_data, colWidths=[1.8*cm, 2.8*cm, 1.5*cm, 9*cm, 2.4*cm])
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c62828')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
