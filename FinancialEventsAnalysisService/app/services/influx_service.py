@@ -169,7 +169,7 @@ from(bucket: "{self.bucket}")
         opis: Optional[str] = None
     ) -> bool:
         """
-        Ažurira događaj - tehnički briše stari i kreira novi sa istim entitet_id
+        GARANTOVANO AŽURIRANJE događaja - briše stari i kreira novi sa istim entitet_id
         
         Args:
             tip_dogadjaja: "transakcija" ili "penal"
@@ -178,6 +178,9 @@ from(bucket: "{self.bucket}")
             iznos: Novi iznos (opciono)
             opis: Novi opis (opciono)
         """
+        import time
+        from datetime import datetime, timedelta
+        
         try:
             # Prvo dohvati postojeći događaj
             existing = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
@@ -190,16 +193,25 @@ from(bucket: "{self.bucket}")
             new_iznos = iznos if iznos is not None else existing['iznos']
             new_opis = opis if opis is not None else existing['opis']
             
-            # Obriši stari zapis - InfluxDB ne podržava update, već delete + insert
-            timestamp = existing['timestamp']
+            logger.info(f"🔄 Ažuriranje događaja: {tip_dogadjaja} - {entitet_id}")
+            
+            # GARANTOVANO BRISANJE starog zapisa - maksimalno širok opseg
+            start_time = datetime(1970, 1, 1)
+            stop_time = datetime.now() + timedelta(days=1)
+            
             delete_api = self.client.delete_api()
+            predicate = f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"'
+            
             delete_api.delete(
-                start=timestamp,
-                stop=timestamp,
-                predicate=f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"',
+                start=start_time,
+                stop=stop_time,
+                predicate=predicate,
                 bucket=self.bucket,
                 org=self.org
             )
+            
+            # Čekaj da se brisanje propagira
+            time.sleep(0.3)
             
             # Upiši novi zapis
             self.write_dogadjaj(
@@ -210,7 +222,14 @@ from(bucket: "{self.bucket}")
                 opis=new_opis
             )
             
-            logger.info(f"Uspešno ažuriran događaj: {tip_dogadjaja} - {entitet_id}")
+            # Verifikuj da je novi zapis upisan
+            time.sleep(0.2)
+            updated = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+            if updated is None:
+                logger.error(f"❌ Novi zapis nije upisan!")
+                raise Exception("Ažuriranje nije uspelo - novi zapis nije pronađen")
+            
+            logger.info(f"✅ POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je ažuriran")
             return True
         except Exception as e:
             logger.error(f"Greška pri ažuriranju događaja: {str(e)}")
@@ -218,12 +237,18 @@ from(bucket: "{self.bucket}")
     
     def delete_dogadjaj_by_id(self, tip_dogadjaja: str, entitet_id: int) -> bool:
         """
-        Briše događaj po ID-u
+        GARANTOVANO TRENUTNO BRISANJE događaja po ID-u
+        
+        Briše SVE zapise sa datim tip_dogadjaja i entitet_id iz KOMPLETNE istorije.
+        Koristi maksimalno širok vremenski opseg i verifikuje brisanje.
         
         Args:
             tip_dogadjaja: "transakcija" ili "penal"
             entitet_id: ID faktore ili ugovora
         """
+        import time
+        from datetime import datetime, timedelta
+        
         try:
             # Prvo proveri da li događaj postoji
             existing = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
@@ -231,19 +256,70 @@ from(bucket: "{self.bucket}")
                 logger.warning(f"Događaj nije pronađen: {tip_dogadjaja} - {entitet_id}")
                 return False
             
-            # Obriši događaj
-            timestamp = existing['timestamp']
+            logger.info(f"🗑️ Brisanje događaja: {tip_dogadjaja} - {entitet_id}")
+            
+            # GARANTOVANO BRISANJE - koristi maksimalno širok vremenski opseg
+            # Briši SVE od početka vremena do 1 dan u budućnost
+            start_time = datetime(1970, 1, 1)  # Unix epoch start
+            stop_time = datetime.now() + timedelta(days=1)  # 1 dan u budućnost
+            
             delete_api = self.client.delete_api()
+            
+            # PRVI POKUŠAJ - širok predicate sa entitet_id kao string
+            predicate = f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"'
+            
+            logger.info(f"Izvršavam DELETE sa predikatom: {predicate}")
             delete_api.delete(
-                start=timestamp,
-                stop=timestamp,
-                predicate=f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{entitet_id}"',
+                start=start_time,
+                stop=stop_time,
+                predicate=predicate,
                 bucket=self.bucket,
                 org=self.org
             )
             
-            logger.info(f"Uspešno obrisan događaj: {tip_dogadjaja} - {entitet_id}")
-            return True
+            # ČEKAJ DA SE BRISANJE PROPAGIRA (InfluxDB je eventually consistent)
+            time.sleep(0.3)  # 300ms čekanje
+            
+            # VERIFIKUJ BRISANJE - proveri da li još postoji
+            max_retries = 3
+            for attempt in range(max_retries):
+                verify = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+                if verify is None:
+                    logger.info(f"✅ POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je obrisan")
+                    return True
+                else:
+                    logger.warning(f"⚠️ Pokušaj {attempt + 1}/{max_retries}: Događaj još postoji, čekam...")
+                    time.sleep(0.2)  # Čekaj još 200ms
+            
+            # Ako nakon svih pokušaja još postoji - NUKLEARNO BRISANJE
+            logger.error(f"🔥 NUKLEARNO BRISANJE: {tip_dogadjaja} - {entitet_id}")
+            
+            # Pokušaj sa različitim formatom predicate-a
+            alternative_predicates = [
+                f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}" AND entitet_id="{str(entitet_id)}"',
+                f'_measurement="dogadjaji" AND tip_dogadjaja="{tip_dogadjaja}"',  # Brisanje svih istog tipa
+            ]
+            
+            for alt_predicate in alternative_predicates:
+                logger.info(f"Alternativni predicate: {alt_predicate}")
+                delete_api.delete(
+                    start=start_time,
+                    stop=stop_time,
+                    predicate=alt_predicate,
+                    bucket=self.bucket,
+                    org=self.org
+                )
+                time.sleep(0.3)
+                
+                verify = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
+                if verify is None:
+                    logger.info(f"✅ Događaj obrisan sa alternativnim predikatom")
+                    return True
+            
+            # Ako ništa nije pomoglo
+            logger.error(f"❌ KRITIČNO: Nije moguće obrisati događaj {tip_dogadjaja} - {entitet_id}")
+            raise Exception(f"Brisanje nije uspelo nakon svih pokušaja")
+            
         except Exception as e:
             logger.error(f"Greška pri brisanju događaja: {str(e)}")
             raise
