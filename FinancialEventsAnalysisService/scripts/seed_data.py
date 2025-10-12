@@ -76,11 +76,9 @@ PENAL_RAZLOZI = [
 
 
 def random_datetime(start: datetime, end: datetime) -> datetime:
-    """Generise nasumični datum između start i end"""
     delta = end - start
-    random_days = random.randint(0, delta.days)
-    random_seconds = random.randint(0, 86400)
-    return start + timedelta(days=random_days, seconds=random_seconds)
+    random_seconds = random.randint(0, int(delta.total_seconds()))
+    return start + timedelta(seconds=random_seconds)
 
 
 def weighted_choice(choices: dict) -> str:
@@ -93,9 +91,10 @@ def weighted_choice(choices: dict) -> str:
 def generate_transakcije(write_api, count: int):
     """Generiše transakcije"""
     print(f"Generisanje {count} transakcija...")
+    from datetime import timezone
     
     for i in range(count):
-        timestamp = random_datetime(DATUM_START, DATUM_END)
+        timestamp = random_datetime(DATUM_START, DATUM_END).replace(tzinfo=timezone.utc)
         status = weighted_choice(TRANSAKCIJA_STATUSI)
         faktura_id = random.randint(1, 1000)
         iznos = round(random.uniform(TRANSAKCIJA_IZNOS_MIN, TRANSAKCIJA_IZNOS_MAX), 2)
@@ -122,9 +121,10 @@ def generate_transakcije(write_api, count: int):
 def generate_penali(write_api, count: int):
     """Generiše penale"""
     print(f"Generisanje {count} penala...")
+    from datetime import timezone
     
     for i in range(count):
-        timestamp = random_datetime(DATUM_START, DATUM_END)
+        timestamp = random_datetime(DATUM_START, DATUM_END).replace(tzinfo=timezone.utc)
         status = weighted_choice(PENAL_STATUSI)
         ugovor_id = random.randint(1, 200)
         
