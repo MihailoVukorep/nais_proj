@@ -354,9 +354,18 @@ from(bucket: "{self.bucket}")
                         "datum": record.get_time().strftime("%Y-%m-%d"),
                         "ukupan_iznos": record.get_value()
                     })
-            
-            data.sort(key=lambda x: x["datum"], reverse=True)
-            return data
+
+            # 🔹 Uklanjanje duplikata po datumu (zadržava prvi pojavljeni)
+            unique_data = {}
+            for entry in data:
+                if entry["datum"] not in unique_data:
+                    unique_data[entry["datum"]] = entry
+
+            # 🔹 Pretvaranje nazad u listu i sortiranje
+            final_data = sorted(unique_data.values(), key=lambda x: x["datum"], reverse=True)
+
+            return final_data
+
         except Exception as e:
             logger.error(f"Greška pri upitu dnevnog prometa: {str(e)}")
             raise
