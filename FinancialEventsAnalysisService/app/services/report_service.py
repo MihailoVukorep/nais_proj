@@ -324,17 +324,22 @@ class ReportService:
             fig, ax = plt.subplots(figsize=(10, 6))
             
             if chart_type == 'dnevni_promet':
-                # Grafikon za dnevni promet
-                datumi = [d['datum'] for d in data[:30]]  # Poslednjih 30 dana
-                iznosi = [d['ukupan_iznos'] for d in data[:30]]
+                # Grafikon za dnevni promet - ISPRAVLJENO
+                # Prikaži sve dostupne dane ili max 30
+                num_days = min(len(data), 30)
+                datumi = [d['datum'] for d in data[:num_days]]
+                iznosi = [d['ukupan_iznos'] for d in data[:num_days]]
                 
                 ax.bar(datumi, iznosi, color='#2c5aa0', alpha=0.7)
                 ax.set_xlabel('Datum', fontsize=10)
                 ax.set_ylabel('Ukupan iznos (RSD)', fontsize=10)
-                ax.set_title('Dnevni promet - Uspešne transakcije', fontsize=12, fontweight='bold')
+                ax.set_title(f'Dnevni promet - Agregacija uspešnih transakcija (poslednjih {num_days} dana)', fontsize=12, fontweight='bold')
                 plt.xticks(rotation=45, ha='right', fontsize=8)
                 plt.yticks(fontsize=8)
                 plt.grid(axis='y', alpha=0.3)
+                
+                # Dodaj formatiranje za y-osu (ako su veliki brojevi)
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:,.0f}'))
                 
             elif chart_type == 'uporedna_analiza':
                 # Grafikon za uporednu analizu
@@ -358,26 +363,27 @@ class ReportService:
                 plt.grid(axis='y', alpha=0.3)
                 
             elif chart_type == 'rizicni_penali':
-                # Grafikon za rizične penale po ugovorima
-                ugovori = {}
-                for p in data[:10]:  # Top 10 ugovora
-                    ugovor_id = p['entitet_id']
-                    if ugovor_id not in ugovori:
-                        ugovori[ugovor_id] = {
-                            'ukupan_iznos': p.get('ukupan_iznos_po_ugovoru', p['iznos']),
-                            'broj_penala': p.get('broj_penala_po_ugovoru', 1)
-                        }
+                # Grafikon za rizične penale po ugovorima - ISPRAVLJENO
+                # Koristimo podatke agregisane iz Flux upita (već grupisane po ugovoru)
+                num_contracts = min(len(data), 10)  # Top 10 ugovora
                 
-                ugovor_ids = [f"Ugovor {uid}" for uid in ugovori.keys()]
-                iznosi = [ugovori[uid]['ukupan_iznos'] for uid in ugovori.keys()]
+                ugovor_ids = [f"Ugovor {p['entitet_id']}" for p in data[:num_contracts]]
+                iznosi = [p['ukupan_iznos_po_ugovoru'] for p in data[:num_contracts]]
+                
+                # Obrnuti redosled za horizontalni grafikon (najmanji na dnu)
+                ugovor_ids = ugovor_ids[::-1]
+                iznosi = iznosi[::-1]
                 
                 ax.barh(ugovor_ids, iznosi, color='#c62828', alpha=0.7)
                 ax.set_xlabel('Ukupan iznos penala (RSD)', fontsize=10)
                 ax.set_ylabel('Ugovor ID', fontsize=10)
-                ax.set_title('Top 10 ugovora sa najvećim penalima', fontsize=12, fontweight='bold')
+                ax.set_title(f'Top {num_contracts} ugovora sa najvećim penalima (> 5000 RSD)', fontsize=12, fontweight='bold')
                 plt.xticks(fontsize=8)
                 plt.yticks(fontsize=8)
                 plt.grid(axis='x', alpha=0.3)
+                
+                # Dodaj formatiranje za x-osu
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:,.0f}'))
             
             plt.tight_layout()
             
@@ -424,8 +430,16 @@ class ReportService:
             
             if dnevni_promet:
                 # Podsekcija naslov
-                subtitle1 = Paragraph("3.1 Dnevni promet (Agregacija)", self.styles['Heading3'])
+                subtitle1 = Paragraph("3.1 Dnevni promet (Agregacija sa SUM funkcijom)", self.styles['Heading3'])
                 elements.append(subtitle1)
+                
+                desc1 = Paragraph(
+                    "Flux upit: Agregacija iznosa uspešnih transakcija po danima korišćenjem sum() funkcije. "
+                    "Podaci se grupišu po dnevnim intervalima (aggregateWindow) i sortiraju hronološki.",
+                    self.styles['SectionDescription']
+                )
+                elements.append(desc1)
+                elements.append(Spacer(1, 0.3*cm))
                 
                 # Grafikon
                 chart_path = self._create_chart(dnevni_promet, 'dnevni_promet')
@@ -434,11 +448,21 @@ class ReportService:
                     elements.append(img)
                     elements.append(Spacer(1, 0.3*cm))
                 
-                # Statistika
+                # Statistika sa više detalja
                 ukupan_promet = sum(d['ukupan_iznos'] for d in dnevni_promet)
                 prosek = ukupan_promet / len(dnevni_promet) if dnevni_promet else 0
-                stats_text = f"<b>Ukupan promet ({days} dana):</b> {ukupan_promet:,.2f} RSD | "
-                stats_text += f"<b>Prosečan dnevni promet:</b> {prosek:,.2f} RSD"
+                max_dnevni = max(dnevni_promet, key=lambda x: x['ukupan_iznos']) if dnevni_promet else None
+                min_dnevni = min(dnevni_promet, key=lambda x: x['ukupan_iznos']) if dnevni_promet else None
+                
+                stats_text = f"<b>Period analize:</b> {days} dana | "
+                stats_text += f"<b>Ukupan promet:</b> {ukupan_promet:,.2f} RSD<br/>"
+                stats_text += f"<b>Prosečan dnevni promet:</b> {prosek:,.2f} RSD | "
+                
+                if max_dnevni:
+                    stats_text += f"<b>Maksimum:</b> {max_dnevni['ukupan_iznos']:,.2f} RSD ({max_dnevni['datum']})<br/>"
+                if min_dnevni:
+                    stats_text += f"<b>Minimum:</b> {min_dnevni['ukupan_iznos']:,.2f} RSD ({min_dnevni['datum']})"
+                
                 elements.append(Paragraph(stats_text, self.styles['Normal']))
                 elements.append(Spacer(1, 0.5*cm))
         
@@ -455,6 +479,14 @@ class ReportService:
                 subtitle2 = Paragraph("3.2 Uporedna analiza (Grupisanje po nedeljama)", self.styles['Heading3'])
                 elements.append(subtitle2)
                 
+                desc2 = Paragraph(
+                    "Flux upit: Grupisanje događaja po nedeljama sa COUNT agregacijom. "
+                    "Kombinacija UNION operatora za paralelno procesiranje penala i transakcija.",
+                    self.styles['SectionDescription']
+                )
+                elements.append(desc2)
+                elements.append(Spacer(1, 0.3*cm))
+                
                 # Grafikon
                 chart_path = self._create_chart(uporedna, 'uporedna_analiza')
                 if chart_path:
@@ -462,11 +494,19 @@ class ReportService:
                     elements.append(img)
                     elements.append(Spacer(1, 0.3*cm))
                 
-                # Statistika
+                # Statistika sa detaljnijom analizom
                 ukupno_penala = sum(d['broj_penala'] for d in uporedna)
                 ukupno_transakcija = sum(d['broj_transakcija'] for d in uporedna)
-                stats_text = f"<b>Ukupno penala ({months} mes):</b> {ukupno_penala} | "
-                stats_text += f"<b>Ukupno transakcija:</b> {ukupno_transakcija}"
+                broj_nedelja = len(uporedna)
+                prosek_penala = ukupno_penala / broj_nedelja if broj_nedelja else 0
+                prosek_transakcija = ukupno_transakcija / broj_nedelja if broj_nedelja else 0
+                
+                stats_text = f"<b>Period analize:</b> {months} mesec(i), {broj_nedelja} nedelja<br/>"
+                stats_text += f"<b>Ukupno penala:</b> {ukupno_penala} | "
+                stats_text += f"<b>Prosečno nedeljno:</b> {prosek_penala:.1f}<br/>"
+                stats_text += f"<b>Ukupno transakcija:</b> {ukupno_transakcija} | "
+                stats_text += f"<b>Prosečno nedeljno:</b> {prosek_transakcija:.1f}"
+                
                 elements.append(Paragraph(stats_text, self.styles['Normal']))
                 elements.append(Spacer(1, 0.5*cm))
         
@@ -480,8 +520,16 @@ class ReportService:
             
             if rizicni:
                 # Podsekcija naslov
-                subtitle3 = Paragraph("3.3 Rizični penali (Filtriranje i agregacija)", self.styles['Heading3'])
+                subtitle3 = Paragraph("3.3 Rizični penali (Filtriranje, agregacija i sortiranje)", self.styles['Heading3'])
                 elements.append(subtitle3)
+                
+                desc3 = Paragraph(
+                    "Flux upit: Kompleksna analiza sa PIVOT, FILTER (iznos > 5000 RSD), GROUP BY (entitet_id), "
+                    "REDUCE agregacijom za sumiranje iznosa i brojanje penala po ugovoru, i SORT DESC po ukupnom iznosu.",
+                    self.styles['SectionDescription']
+                )
+                elements.append(desc3)
+                elements.append(Spacer(1, 0.3*cm))
                 
                 # Grafikon
                 chart_path = self._create_chart(rizicni, 'rizicni_penali')
@@ -490,21 +538,30 @@ class ReportService:
                     elements.append(img)
                     elements.append(Spacer(1, 0.3*cm))
                 
-                # Tabela sa detaljima
+                # Tabela sa detaljima - ISPRAVLJENO
+                # Podaci iz query_rizicni_penali već su agregisani po ugovoru
                 table_data = [
-                    ['Ugovor\nID', 'Iznos\npenala\n(RSD)', 'Ukupno po\nugovoru\n(RSD)', 'Broj\npenala', 'Razlog']
+                    ['Ugovor\nID', 'Ukupan iznos\npenala (RSD)', 'Broj\npenala', 'Poslednji razlog', 'Datum\nposlednjeg']
                 ]
                 
                 for r in rizicni[:10]:
+                    # Formatiranje datuma
+                    datum_str = "N/A"
+                    if 'poslednje_vreme' in r and r['poslednje_vreme']:
+                        try:
+                            datum_str = r['poslednje_vreme'].strftime("%d.%m.%Y")
+                        except:
+                            datum_str = str(r['poslednje_vreme'])[:10]
+                    
                     table_data.append([
                         str(r['entitet_id']),
-                        f"{r['iznos']:,.2f}",
-                        f"{r.get('ukupan_iznos_po_ugovoru', r['iznos']):,.2f}",
-                        str(r.get('broj_penala_po_ugovoru', 1)),
-                        r['opis'][:35] + '...' if len(r['opis']) > 35 else r['opis']
+                        f"{r['ukupan_iznos_po_ugovoru']:,.2f}",
+                        str(r['broj_penala_po_ugovoru']),
+                        r['poslednji_opis'][:40] + '...' if len(r['poslednji_opis']) > 40 else r['poslednji_opis'],
+                        datum_str
                     ])
                 
-                table = Table(table_data, colWidths=[1.5*cm, 2.5*cm, 2.5*cm, 1.5*cm, 9.5*cm])
+                table = Table(table_data, colWidths=[2*cm, 3*cm, 2*cm, 8*cm, 2.5*cm])
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c62828')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -524,6 +581,18 @@ class ReportService:
                 ]))
                 
                 elements.append(table)
+                elements.append(Spacer(1, 0.3*cm))
+                
+                # Statistika - DODATO
+                ukupan_iznos_rizicnih = sum(r['ukupan_iznos_po_ugovoru'] for r in rizicni)
+                ukupan_broj_penala = sum(r['broj_penala_po_ugovoru'] for r in rizicni)
+                broj_ugovora = len(rizicni)
+                
+                stats_text = f"<b>Broj rizičnih ugovora:</b> {broj_ugovora} | "
+                stats_text += f"<b>Ukupan iznos penala:</b> {ukupan_iznos_rizicnih:,.2f} RSD | "
+                stats_text += f"<b>Ukupan broj penala:</b> {ukupan_broj_penala}"
+                
+                elements.append(Paragraph(stats_text, self.styles['Normal']))
         
         except Exception as e:
             logger.error(f"Greška u rizičnim penalima: {str(e)}")
