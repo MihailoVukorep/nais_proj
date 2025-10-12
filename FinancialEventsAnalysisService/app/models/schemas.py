@@ -65,12 +65,11 @@ class DnevniPrometResponse(BaseModel):
 
 class RizicniPenalResponse(BaseModel):
     """Response za rizične penale - sa agregacijom po ugovoru"""
-    timestamp: datetime
     entitet_id: int
-    iznos: float
-    opis: str
     ukupan_iznos_po_ugovoru: float = Field(..., description="Ukupan agregiran iznos svih penala za ovaj ugovor")
     broj_penala_po_ugovoru: int = Field(..., description="Ukupan broj penala za ovaj ugovor")
+    poslednji_opis: str = Field(..., description="Opis poslednjeg penala za ovaj ugovor")
+    poslednje_vreme: datetime = Field(..., description="Vreme poslednjeg penala za ovaj ugovor")
 
 
 class NedeljnaAnalizaResponse(BaseModel):

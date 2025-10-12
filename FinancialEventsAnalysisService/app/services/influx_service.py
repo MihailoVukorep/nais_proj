@@ -364,94 +364,66 @@ from(bucket: "{self.bucket}")
     def query_rizicni_penali(self, min_iznos: float = 5000, limit: int = 10) -> List[dict]:
         """
         Identifikuje rizične penale
-        
-        Flux upit: Prikaži ugovore sa najrizičnijim penalima (iznos > 5000 RSD)
-        Kombinuje filtriranje, pivot transformaciju, grupisanje, agregaciju i sortiranje podataka
-        Za svaki ugovor agregira ukupan iznos penala i broj penala
+
+        Izvršava složeni Flux upit koji:
+        - Filtrira penale po tipu i statusu
+        - Kombinuje polja 'iznos' i 'opis' pivot transformacijom
+        - Grupise podatke po ugovoru (entitet_id)
+        - Agregira (sabira iznose i broji penale)
+        - Sortira rezultate po ukupnom iznosu penala
+        - Ograničava rezultat (limit)
+        Sve se izvodi server-side u Flux-u (bez Python post-obrade).
         """
-        flux_query_data = f'''
-from(bucket: "{self.bucket}")
-  |> range(start: -1y)
-  |> filter(fn: (r) => r._measurement == "dogadjaji")
-  |> filter(fn: (r) => r.tip_dogadjaja == "penal")
-  |> filter(fn: (r) => r.status == "kreiran")
-  |> filter(fn: (r) => r._field == "iznos" or r._field == "opis")
-  |> pivot(rowKey: ["_time", "entitet_id"], columnKey: ["_field"], valueColumn: "_value")
-  |> filter(fn: (r) => float(v: r.iznos) > {min_iznos})
-  |> sort(columns: ["_time"], desc: true)
-  |> yield(name: "penali_sa_opisom")
-        '''
-        
-        flux_query_agg = f'''
-from(bucket: "{self.bucket}")
-  |> range(start: -1y)
-  |> filter(fn: (r) => r._measurement == "dogadjaji")
-  |> filter(fn: (r) => r.tip_dogadjaja == "penal")
-  |> filter(fn: (r) => r.status == "kreiran")
-  |> filter(fn: (r) => r._field == "iznos")
-  |> filter(fn: (r) => r._value > {min_iznos})
-  |> group(columns: ["entitet_id"])
-  |> sum(column: "_value")
-  |> set(key: "ukupan_iznos", value: string(v: int(v: r._value)))
-  |> count(column: "_value")
-  |> set(key: "broj_penala", value: string(v: int(v: r._value)))
-  |> group()
-  |> yield(name: "agregacija_po_ugovoru")
+        flux_query = f'''
+    from(bucket: "{self.bucket}")
+    |> range(start: -1y)
+    |> filter(fn: (r) => 
+        r._measurement == "dogadjaji" and
+        r.tip_dogadjaja == "penal" and
+        r.status == "kreiran"
+    )
+    |> filter(fn: (r) => r._field == "iznos" or r._field == "opis")
+    |> pivot(rowKey: ["_time", "entitet_id"], columnKey: ["_field"], valueColumn: "_value")
+    |> filter(fn: (r) => float(v: r.iznos) > {min_iznos})
+    |> group(columns: ["entitet_id"])
+    |> reduce(
+        fn: (r, accumulator) => ({{
+            entitet_id: r.entitet_id,
+            ukupan_iznos: accumulator.ukupan_iznos + float(v: r.iznos),
+            broj_penala: accumulator.broj_penala + 1,
+            poslednji_opis: if exists r.opis then r.opis else accumulator.poslednji_opis,
+            poslednje_vreme: if exists r._time then r._time else accumulator.poslednje_vreme
+        }}),
+        identity: {{entitet_id: "", ukupan_iznos: 0.0, broj_penala: 0, poslednji_opis: "", poslednje_vreme: 2020-01-01T00:00:00Z}}
+    )
+    |> sort(columns: ["ukupan_iznos"], desc: true)
+    |> limit(n: {limit})
+    |> yield(name: "rizicni_penali")
         '''
         
         try:
-            result_data = self.query_api.query(flux_query_data, org=self.org)
-            
-            penali_data = []
-            for table in result_data:
-                for record in table.records:
-                    timestamp = record.get_time()
-                    entitet_id = record.values.get('entitet_id')
-                    iznos = record.values.get('iznos')
-                    opis = record.values.get('opis', 'N/A')
-                    
-                    penali_data.append({
-                        "timestamp": timestamp,
-                        "entitet_id": entitet_id,
-                        "iznos": float(iznos) if iznos is not None else 0.0,
-                        "opis": str(opis) if opis else "N/A"
-                    })
-            
-            # Agregacija po ugovoru
-            ugovor_stats = {}
-            for penal in penali_data:
-                entitet_id = penal['entitet_id']
-                if entitet_id not in ugovor_stats:
-                    ugovor_stats[entitet_id] = {
-                        'ukupan_iznos': 0.0,
-                        'broj_penala': 0
-                    }
-                ugovor_stats[entitet_id]['ukupan_iznos'] += penal['iznos']
-                ugovor_stats[entitet_id]['broj_penala'] += 1
-            
-            # Sortiraj po vremenu i primeni limit
-            penali_data.sort(key=lambda x: x['timestamp'], reverse=True)
-            limited_data = penali_data[:limit]
-            
-            # Dodaj agregirane statistike svakom penalu
+            result = self.query_api.query(flux_query, org=self.org)
             data = []
-            for penal in limited_data:
-                entitet_id = penal['entitet_id']
-                stats = ugovor_stats[entitet_id]
-                
-                data.append({
-                    "timestamp": penal['timestamp'],
-                    "entitet_id": int(entitet_id),
-                    "iznos": penal['iznos'],
-                    "opis": penal['opis'],
-                    "ukupan_iznos_po_ugovoru": float(stats['ukupan_iznos']),
-                    "broj_penala_po_ugovoru": int(stats['broj_penala'])
-                })
-            
+            for table in result:
+                for record in table.records:
+                    # Osiguraj da je poslednje_vreme datetime objekat
+                    poslednje_vreme = record.values.get("poslednje_vreme")
+                    if isinstance(poslednje_vreme, str):
+                        from datetime import datetime
+                        poslednje_vreme = datetime.fromisoformat(poslednje_vreme.replace('Z', '+00:00'))
+                    
+                    data.append({
+                        "entitet_id": int(record.values.get("entitet_id")),
+                        "ukupan_iznos_po_ugovoru": float(record.values.get("ukupan_iznos", 0)),
+                        "broj_penala_po_ugovoru": int(record.values.get("broj_penala", 0)),
+                        "poslednji_opis": record.values.get("poslednji_opis", "N/A"),
+                        "poslednje_vreme": poslednje_vreme
+                    })
             return data
         except Exception as e:
             logger.error(f"Greška pri upitu rizičnih penala: {str(e)}")
             raise
+
     
     def query_uporedna_analiza(self, months: int = 3) -> List[dict]:
         """
