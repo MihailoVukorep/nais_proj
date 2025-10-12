@@ -193,7 +193,7 @@ from(bucket: "{self.bucket}")
             new_iznos = iznos if iznos is not None else existing['iznos']
             new_opis = opis if opis is not None else existing['opis']
             
-            logger.info(f"🔄 Ažuriranje događaja: {tip_dogadjaja} - {entitet_id}")
+            logger.info(f"Ažuriranje događaja: {tip_dogadjaja} - {entitet_id}")
             
             # GARANTOVANO BRISANJE starog zapisa - maksimalno širok opseg
             start_time = datetime(1970, 1, 1)
@@ -226,10 +226,10 @@ from(bucket: "{self.bucket}")
             time.sleep(0.2)
             updated = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
             if updated is None:
-                logger.error(f"❌ Novi zapis nije upisan!")
+                logger.error(f"Novi zapis nije upisan!")
                 raise Exception("Ažuriranje nije uspelo - novi zapis nije pronađen")
             
-            logger.info(f"✅ POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je ažuriran")
+            logger.info(f"POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je ažuriran")
             return True
         except Exception as e:
             logger.error(f"Greška pri ažuriranju događaja: {str(e)}")
@@ -256,7 +256,7 @@ from(bucket: "{self.bucket}")
                 logger.warning(f"Događaj nije pronađen: {tip_dogadjaja} - {entitet_id}")
                 return False
             
-            logger.info(f"🗑️ Brisanje događaja: {tip_dogadjaja} - {entitet_id}")
+            logger.info(f"Brisanje događaja: {tip_dogadjaja} - {entitet_id}")
             
             # GARANTOVANO BRISANJE - koristi maksimalno širok vremenski opseg
             # Briši SVE od početka vremena do 1 dan u budućnost
@@ -285,14 +285,14 @@ from(bucket: "{self.bucket}")
             for attempt in range(max_retries):
                 verify = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
                 if verify is None:
-                    logger.info(f"✅ POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je obrisan")
+                    logger.info(f"POTVRĐENO: Događaj {tip_dogadjaja} - {entitet_id} je obrisan")
                     return True
                 else:
-                    logger.warning(f"⚠️ Pokušaj {attempt + 1}/{max_retries}: Događaj još postoji, čekam...")
+                    logger.warning(f"Pokušaj {attempt + 1}/{max_retries}: Događaj još postoji, čekam...")
                     time.sleep(0.2)  # Čekaj još 200ms
             
-            # Ako nakon svih pokušaja još postoji - NUKLEARNO BRISANJE
-            logger.error(f"🔥 NUKLEARNO BRISANJE: {tip_dogadjaja} - {entitet_id}")
+            # Ako nakon svih pokušaja još postoji -  BRISANJE
+            logger.error(f"BRISANJE: {tip_dogadjaja} - {entitet_id}")
             
             # Pokušaj sa različitim formatom predicate-a
             alternative_predicates = [
@@ -313,11 +313,11 @@ from(bucket: "{self.bucket}")
                 
                 verify = self.get_dogadjaj_by_id(tip_dogadjaja, entitet_id)
                 if verify is None:
-                    logger.info(f"✅ Događaj obrisan sa alternativnim predikatom")
+                    logger.info(f"Događaj obrisan sa alternativnim predikatom")
                     return True
             
             # Ako ništa nije pomoglo
-            logger.error(f"❌ KRITIČNO: Nije moguće obrisati događaj {tip_dogadjaja} - {entitet_id}")
+            logger.error(f"KRITIČNO: Nije moguće obrisati događaj {tip_dogadjaja} - {entitet_id}")
             raise Exception(f"Brisanje nije uspelo nakon svih pokušaja")
             
         except Exception as e:
