@@ -19,7 +19,7 @@ public class RouteService {
     @Autowired
     private RouteRepository repo;
 
-    public OptimalRouteResponse findOptimalRoute(RouteRequest req) {
+    /*public OptimalRouteResponse findOptimalRoute(RouteRequest req) {
 
         Map<String,Object> result = repo.findShortestPath(req.getStart(), req.getEnd());
 
@@ -30,8 +30,7 @@ public class RouteService {
         List<String> nodeNames = nodeIds.stream().map(Object::toString).toList();
 
         return new OptimalRouteResponse(nodeNames, cost);
-    }
-
+    }*/
     public List<Route> getAllRoutes() {
         return repo.findAll();
     }

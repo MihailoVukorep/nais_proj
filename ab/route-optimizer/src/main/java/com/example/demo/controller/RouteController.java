@@ -20,7 +20,7 @@ public class RouteController {
 
     @PostMapping("/optimize")
     public ResponseEntity<?> optimize(@RequestBody RouteRequest req) {
-        return ResponseEntity.ok(service.findOptimalRoute(req));
+        //return ResponseEntity.ok(service.findOptimalRoute(req));
     }
 
     @GetMapping
