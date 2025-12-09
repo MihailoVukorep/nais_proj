@@ -68,7 +68,8 @@ public class IsporukaController {
     @GetMapping("/aktivne")
     public ResponseEntity<?> getAktivne() {
         try {
-            List<Isporuka> isporuke = isporukaService.findAktivneIsporuke();
+            //List<Isporuka> isporuke = isporukaService.findAktivneIsporuke();
+            List<Isporuka> isporuke = isporukaService.findByStatus("aktivna");
             return ResponseEntity.ok(isporuke);
         } catch (Exception e) {
             return ResponseEntity.badRequest()

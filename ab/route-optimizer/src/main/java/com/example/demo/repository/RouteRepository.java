@@ -1,5 +1,6 @@
 package com.example.demo.repository;
 
+import com.example.demo.model.Location;
 import com.example.demo.model.Route;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
@@ -15,8 +16,8 @@ public interface RouteRepository extends Neo4jRepository<Route, Long> {
                 distanceKm: $distanceKm, durationHours: $durationHours, status: $status}) 
         RETURN r
     """)
-    Route createRoute(@Param("startLocation") String startLocation,
-                      @Param("endLocation") String endLocation,
+    Route createRoute(@Param("startLocation") Location startLocation,
+                      @Param("endLocation") Location endLocation,
                       @Param("distanceKm") Double distanceKm,
                       @Param("durationHours") Double durationHours,
                       @Param("status") String status);

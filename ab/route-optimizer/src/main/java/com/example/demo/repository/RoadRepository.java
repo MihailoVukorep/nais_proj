@@ -10,6 +10,7 @@ import java.util.*;
 @Repository
 public interface RoadRepository extends Neo4jRepository<Road, Long> {
 
+
     @Query("""
     MATCH (a:Location)-[r:ROAD]->(b:Location)
     WHERE r.distance < $max

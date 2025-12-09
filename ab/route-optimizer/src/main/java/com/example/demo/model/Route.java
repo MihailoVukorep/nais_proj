@@ -45,4 +45,61 @@ public class Route {
     @Setter
     @Property("status")
     private String status; // planirana/u_toku/odstupanje/zavrsena
+
+    public Route() {}
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Location getStartLocation() {
+        return startLocation;
+    }
+
+    public void setStartLocation(Location startLocation) {
+        this.startLocation = startLocation;
+    }
+
+    public Location getEndLocation() {
+        return endLocation;
+    }
+
+    public void setEndLocation(Location endLocation) {
+        this.endLocation = endLocation;
+    }
+
+    public Double getDistanceKm() {
+        return distanceKm;
+    }
+
+    public void setDistanceKm(Double distanceKm) {
+        this.distanceKm = distanceKm;
+    }
+
+    public Double getDurationHours() {
+        return durationHours;
+    }
+
+    public void setDurationHours(Double durationHours) {
+        this.durationHours = durationHours;
+    }
+
+    public List<Location> getPath() {
+        return path;
+    }
+
+    public void setPath(List<Location> path) {
+        this.path = path;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

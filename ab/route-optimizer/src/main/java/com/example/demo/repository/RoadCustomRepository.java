@@ -1,11 +1,14 @@
 package com.example.demo.repository;
 
+import com.example.demo.model.Isporuka;
+import com.example.demo.model.Location;
 import com.example.demo.model.Road;
+import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 
-public interface RoadCustomRepository {
+public interface RoadCustomRepository extends Neo4jRepository<Location, Long> {
 
     @Query("""
         MATCH (from:Location), (to:Location)
@@ -56,6 +59,16 @@ public interface RoadCustomRepository {
                               @Param("blocked") Boolean blocked,
                               @Param("reason") String reason);
 
+    @Query("""
+        MATCH ()-[r:ROAD]-()
+        WHERE id(r) = $roadId
+        SET r.blocked = COALESCE($blocked, r.blocked),
+            r.reason = COALESCE($reason, r.reason)
+        RETURN r
+    """)
+    Road blockRoad(@Param("roadId") Long roadId,
+                   @Param("blocked") Boolean blocked,
+                   @Param("reason") String reason);
     @Query("""
         MATCH ()-[r:ROAD]-()
         WHERE id(r) = $roadId

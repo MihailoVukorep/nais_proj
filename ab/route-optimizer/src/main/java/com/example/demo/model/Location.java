@@ -23,6 +23,7 @@ public class Location {
     @Relationship(type = "ROAD")
     private List<Road> roads;
 
+    public Location() {}
     public Long getId() {
         return id;
     }
