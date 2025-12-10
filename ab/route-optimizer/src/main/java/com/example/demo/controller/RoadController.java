@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/roads")
@@ -83,22 +84,30 @@ public class RoadController {
     public ResponseEntity<?> blockRoad(@PathVariable Long roadId,
                                        @RequestParam String reason) {
         try {
-            Road blocked = roadService.blockRoad(roadId, reason);
-            return ResponseEntity.ok(blocked);
+            Map<String, Object> result = roadService.blockRoad(roadId, reason);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Greška pri blokiranju puta: " + e.getMessage());
+                    .body(Map.of(
+                            "success", false,
+                            "error", "Greška pri blokiranju puta.",
+                            "detalji", e.getMessage()
+                    ));
         }
     }
 
     @PatchMapping("/{roadId}/unblock")
     public ResponseEntity<?> unblockRoad(@PathVariable Long roadId) {
         try {
-            Road unblocked = roadService.unblockRoad(roadId);
+            Map<String, Object> unblocked = roadService.unblockRoad(roadId);
             return ResponseEntity.ok(unblocked);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body("Greška pri odblokiranju puta: " + e.getMessage());
+                    .body(Map.of(
+                            "success", false,
+                            "error", "Greška pri blokiranju puta.",
+                            "detalji", e.getMessage()
+                    ));
         }
     }
 

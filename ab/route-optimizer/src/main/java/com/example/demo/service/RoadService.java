@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -231,12 +232,26 @@ public class RoadService {
                 durationHours, blocked, reason);
     }*/
 
-    public Road blockRoad(Long roadId, String reason) {
-        return roadCustomRepository.blockRoad(roadId, true,reason);
+    public Map<String, Object> blockRoad(Long roadId, String reason) {
+        List<Map<String, Object>> result =
+                roadCustomRepository.blockRoadRaw(roadId, true, reason);
+
+        if (result.isEmpty()) {
+            throw new RuntimeException("Put nije pronađen.");
+        }
+
+        return result.get(0);
     }
 
-    public Road unblockRoad(Long roadId) {
-        return roadCustomRepository.blockRoad(roadId, false, null);
+    public Map<String, Object>  unblockRoad(Long roadId) {
+        List<Map<String, Object>> result =
+                roadCustomRepository.blockRoadRaw(roadId, false, null);
+
+        if (result.isEmpty()) {
+            throw new RuntimeException("Put nije pronađen.");
+        }
+
+        return result.get(0);
     }
 
     /*public boolean deleteRoad(Long roadId) {

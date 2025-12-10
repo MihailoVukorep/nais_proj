@@ -7,6 +7,7 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Map;
 
 public interface RoadCustomRepository extends Neo4jRepository<Location, Long> {
 
@@ -60,15 +61,19 @@ public interface RoadCustomRepository extends Neo4jRepository<Location, Long> {
                               @Param("reason") String reason);
 
     @Query("""
-        MATCH ()-[r:ROAD]-()
-        WHERE id(r) = $roadId
-        SET r.blocked = COALESCE($blocked, r.blocked),
-            r.reason = COALESCE($reason, r.reason)
-        RETURN r
-    """)
-    Road blockRoad(@Param("roadId") Long roadId,
-                   @Param("blocked") Boolean blocked,
-                   @Param("reason") String reason);
+    MATCH ()-[r:ROAD]-()
+    WHERE id(r) = $roadId
+    SET r.blocked = $blocked,
+        r.reason = $reason
+    RETURN {
+        id: id(r),
+        blocked: r.blocked,
+        reason: r.reason
+    } AS road
+""")
+    List<Map<String, Object>> blockRoadRaw(@Param("roadId") Long roadId,
+                                           @Param("blocked") Boolean blocked,
+                                           @Param("reason") String reason);
     @Query("""
         MATCH ()-[r:ROAD]-()
         WHERE id(r) = $roadId
