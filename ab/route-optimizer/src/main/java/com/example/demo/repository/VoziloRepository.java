@@ -30,6 +30,10 @@ public interface VoziloRepository extends Neo4jRepository<Vozilo, Long> {
     @Query("MATCH (v:Vozilo {marka: $marka}) RETURN v")
     List<Vozilo> findByMarka(@Param("marka") String marka);
 
+    @Query("MATCH (v:Vozilo {marka: $marka, model: $model}) RETURN v")
+    List<Vozilo> findByMarkaModel(@Param("marka") String marka,
+                                  @Param("model") String model);
+
     @Query("MATCH (v:Vozilo {status: $status}) RETURN v")
     List<Vozilo> findByStatus(@Param("status") String status);
 

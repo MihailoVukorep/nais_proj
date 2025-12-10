@@ -40,6 +40,9 @@ public class VoziloService {
     public List<Vozilo> findByMarka(String marka) {
         return voziloRepository.findByMarka(marka);
     }
+    public Vozilo findByMarkaModel(String marka, String model) {
+        return voziloRepository.findByMarkaModel(marka,model).get(0);
+    }
 
     public List<Vozilo> findByKapacitetGreaterThan(Double minKapacitet) {
         return voziloRepository.findByKapacitetKgGreaterThanEqual(minKapacitet);
