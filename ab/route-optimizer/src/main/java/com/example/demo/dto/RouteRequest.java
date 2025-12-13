@@ -13,7 +13,16 @@ public class RouteRequest {
     private Double durationHours;
     private List<String> path; // lista imena lokacija na putanji
 
-    // Getters and Setters
+    private String status;
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public String getStart() { return start; }
     public void setStart(String start) { this.start = start; }
 

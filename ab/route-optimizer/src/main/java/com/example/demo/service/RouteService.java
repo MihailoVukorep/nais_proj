@@ -387,7 +387,7 @@ public class RouteService {
         }
     }
 
-    public Route updateRoute(Long id, Route route) {
+    public Route updateRoute(Long id, RouteRequest route) {
         String query = """
             MATCH (r:Route)
             WHERE id(r) = $id
@@ -417,12 +417,18 @@ public class RouteService {
             );
 
             // Ako su dostupni start i end location, ažuriraj veze
-            if (route.getStartLocation() != null && route.getEndLocation() != null) {
-                String updateLocationsQuery = """
+            if (route.getStart() != null && route.getEnd() != null) {
+                /*String updateLocationsQuery = """
                     MATCH (r:Route), (start:Location), (end:Location)
                     WHERE id(r) = $routeId 
                       AND id(start) = $startId 
                       AND id(end) = $endId
+                    MERGE (r)-[:STARTS_AT]->(start)
+                    MERGE (r)-[:ENDS_AT]->(end)
+                    """;*/
+                String updateLocationsQuery = """
+                    MATCH (r:Route), (start:Location {name : $startName}), (end:Location {name : $endName})
+                    WHERE id(r) = $routeId 
                     MERGE (r)-[:STARTS_AT]->(start)
                     MERGE (r)-[:ENDS_AT]->(end)
                     """;
@@ -430,8 +436,8 @@ public class RouteService {
                 session.run(updateLocationsQuery,
                         Values.parameters(
                                 "routeId", id,
-                                "startId", route.getStartLocation().getId(),
-                                "endId", route.getEndLocation().getId()
+                                "startName", route.getStart(),
+                                "endName", route.getEnd()
                         )
                 );
             }
