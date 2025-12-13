@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.annotation.Nullable;
 import org.springframework.data.neo4j.core.schema.*;
 
 import java.time.Instant;
@@ -15,8 +16,11 @@ public class Isporuka {
     private Double kolicinaKg;
     private String status; // aktivna, u_toku, spremna, zavrsena
 
+
     private LocalDateTime datumKreiranja;
+    @Nullable
     private LocalDateTime datumPolaska;
+    @Nullable
     private LocalDateTime datumDolaska;
 
     @JsonIgnore

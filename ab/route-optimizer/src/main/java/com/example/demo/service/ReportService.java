@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.dto.DriverAnalyticsDTO;
 import com.example.demo.dto.IsporukaReportDTO;
+import com.example.demo.dto.RoadInfoDTO;
 import com.example.demo.model.Isporuka;
 import com.example.demo.model.Vozac;
 import com.example.demo.model.Vozilo;
@@ -24,6 +25,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,8 @@ public class ReportService {
     private VoziloRepository voziloRepository;
     @Autowired
     private VozacRepository vozacRepository;
+    @Autowired
+    private RoadService roadService;
 
     public byte[] generateSimpleReportBytes() {
         try {
@@ -48,31 +52,45 @@ public class ReportService {
             doc.open();
 
             // ===== SECTION 1 =====
-            doc.add(new Paragraph("SEKCIJA 1: Isporuke (poslednjih 30 dana)"));
-            doc.add(new Paragraph(" "));
+            //doc.add(new Paragraph("SEKCIJA 1: Isporuke (poslednjih 30 dana)"));
+            //doc.add(new Paragraph(" "));
 
             //String start = LocalDate.now().minusDays(30) + "T00:00:00";
-            List<IsporukaReportDTO> isporuke =
+            //List<IsporukaReportDTO> isporuke =
                     //isporukaRepository.findIsporukeFromDate(LocalDate.now().minusDays(30).toString());
                     //isporukaRepository.findIsporukeFromDate("\"2025-12-03\"");
-                    //isporukaRepository.findIsporukeFromDate(LocalDate.now().minusDays(30));
-                    isporukaRepository.findIsporukeSimpleDTO(LocalDate.now().minusDays(30));
-            PdfPTable table1 = new PdfPTable(4);
+            //List<Isporuka> isporuke =
+              //      isporukaRepository.findIsporukeFromDate(LocalDate.now().minusDays(30));
+                    //isporukaRepository.findIsporukeSimpleDTO(LocalDate.now().minusDays(30));
+            /*PdfPTable table1 = new PdfPTable(4);
             table1.setWidthPercentage(100);
             table1.addCell("ID");
             table1.addCell("Status");
             table1.addCell("Količina");
             table1.addCell("Datum polaska");
 
-            for (IsporukaReportDTO i : isporuke) {
+            for (Isporuka i : isporuke) {
                 table1.addCell("Isporuka "+ i.getId().toString());
                 table1.addCell(i.getStatus());
                 table1.addCell(i.getKolicinaKg().toString());
                 table1.addCell(i.getDatumPolaska() != null ? i.getDatumPolaska().toString() : "-");
-                /*table1.addCell(String.valueOf(i.getId()));
-                table1.addCell(String.valueOf(i.getStatus()));
-                table1.addCell(String.valueOf(i.getKolicinaKg()));
-                table1.addCell(i.getDatumPolaska() != null ? i.getDatumPolaska().toString() : "-");*/
+            }*/
+            doc.add(new Paragraph("SEKCIJA 1: Kasnjenje isporuka zbog blokada na sledecim putevima:"));
+            doc.add(new Paragraph(" "));
+
+            List<RoadInfoDTO> roads = roadService.findBlocked();
+            PdfPTable table1 = new PdfPTable(4);
+            table1.setWidthPercentage(100);
+            table1.addCell("Start");
+            table1.addCell("Destinacija");
+            table1.addCell("distanca(KM)");
+            table1.addCell("Razlog blokade");
+
+            for (RoadInfoDTO r : roads) {
+                table1.addCell(r.getStart());
+                table1.addCell(r.getDestination());
+                table1.addCell(r.getDistanceKm().toString());
+                table1.addCell(r.getReason() != null ? r.getReason().toString() : "-");
             }
 
             doc.add(table1);
@@ -160,16 +178,13 @@ public class ReportService {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         try {
-            // Kreiranje dokumenta sa većim marginama za profesionalniji izgled
             Document doc = new Document(PageSize.A4, 50, 50, 80, 50);
             PdfWriter writer = PdfWriter.getInstance(doc, baos);
 
-            // Dodavanje custom headera i footera
             writer.setPageEvent(new HeaderFooterHandler());
 
             doc.open();
 
-            // === NASLOVNA STRANA ===
             createTitlePage(doc);
 
             // === SEKCIJA 1: PREGLED ISPORUKA U PRETHODNIH 30 DANA ===
@@ -191,17 +206,8 @@ public class ReportService {
     }
 
     private void createTitlePage(Document doc) throws DocumentException {
-        // Logo ili naslovna slika (možete dodati logo ako ga imate)
-        try {
-            Image logo = Image.getInstance("src/main/resources/static/logo.png");
-            logo.scaleToFit(150, 100);
-            logo.setAbsolutePosition((PageSize.A4.getWidth() - 150) / 2, PageSize.A4.getHeight() - 150);
-            doc.add(logo);
-        } catch (Exception e) {
-            // Ako nema logo fajla, nastavimo bez njega
-        }
 
-        // Glavni naslov
+
         Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 32, new Color(0, 51, 102));
         Paragraph title = new Paragraph("OPERATIVNI IZVEŠTAJ LOGISTIČKOG KOORDINATORA", titleFont);
         title.setAlignment(Element.ALIGN_CENTER);
@@ -221,19 +227,13 @@ public class ReportService {
         Font infoFont = FontFactory.getFont(FontFactory.HELVETICA, 12, Color.DARK_GRAY);
         Paragraph info = new Paragraph("\n\n\n\n\n\n\n" +
                 "Izveštaj sadrži:\n" +
-                "• Pregled isporuka u prethodnih 30 dana\n" +
+                "• Pregled kašnjenja isporuka\n" +
                 "• Analizu vozila za hitnu popravku\n" +
                 "• Klasifikaciju vozača sa preporukama za bonuse\n\n" +
                 "Generisano za: Logistički koordinator\n" +
-                "Datum generisanja: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), infoFont);
+                "Datum generisanja: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), infoFont);
         info.setAlignment(Element.ALIGN_CENTER);
         doc.add(info);
-
-        // Pečat ili potpis
-        Font stampFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.GRAY);
-        Paragraph stamp = new Paragraph("\n\n\n\n\n\nOvaj izveštaj je automatski generisan i ne zahteva fizički potpis.", stampFont);
-        stamp.setAlignment(Element.ALIGN_CENTER);
-        doc.add(stamp);
 
         doc.newPage();
     }
@@ -241,7 +241,7 @@ public class ReportService {
     private void createIsporukeSection(Document doc) throws DocumentException {
         // Sekcija header
         Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new Color(41, 128, 185));
-        Paragraph sectionTitle = new Paragraph("SEKCIJA 1: PREGLED ISPORUKA U PRETHODNIH 30 DANA", sectionFont);
+        Paragraph sectionTitle = new Paragraph("SEKCIJA 1: PREGLED RAZLOGA KASNJENJA ISPORUKA I BLOKADA PRILIKOM TRANSPORTA", sectionFont);
         sectionTitle.setAlignment(Element.ALIGN_LEFT);
         sectionTitle.setSpacingBefore(20);
         sectionTitle.setSpacingAfter(15);
@@ -249,38 +249,31 @@ public class ReportService {
 
         // Uvodni tekst
         Font introFont = FontFactory.getFont(FontFactory.HELVETICA, 11, Color.DARK_GRAY);
-        Paragraph intro = new Paragraph("Ovaj odeljak prikazuje sve isporuke izvršene u periodu od prethodnih 30 dana. " +
-                "Podaci obuhvataju status isporuke, količinu tereta, vreme polaska i dolaska, kao i dodeljenu rutu.", introFont);
+        Paragraph intro = new Paragraph("Ovaj odeljak prikazuje razloge kašnjenja isporuka prilikom transporta. " +
+                "Podaci obuhvataju početnu i krajnju tačku, i udaljenost između njih zajedno za razlokom blokade.", introFont);
         intro.setSpacingAfter(20);
         doc.add(intro);
 
         // Dobavljanje podataka o isporukama
         //List<Isporuka> isporuke = isporukaRepository.findIsporukeFromDate(LocalDate.now().minusDays(30));
-        List<IsporukaReportDTO> isporuke = isporukaRepository.findIsporukeSimpleDTO(LocalDate.now().minusDays(30));
+        //List<IsporukaReportDTO> isporuke = isporukaRepository.findIsporukeSimpleDTO(LocalDate.now().minusDays(30));
 
-        if (isporuke.isEmpty()) {
+        List<RoadInfoDTO> roads = roadService.findBlocked();
+        if (roads.isEmpty()) {
             Font warningFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.ORANGE);
-            Paragraph warning = new Paragraph("NEMA PODATAKA O ISPORUKAMA ZA TRAŽENI PERIOD", warningFont);
+            Paragraph warning = new Paragraph("NEMA PODATAKA.", warningFont);
             warning.setAlignment(Element.ALIGN_CENTER);
             warning.setSpacingBefore(20);
             warning.setSpacingAfter(20);
             doc.add(warning);
 
-            // Dodajemo napomenu da verovatno nema isporuka ili je problem sa upitom
-            Font noteFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.GRAY);
-            Paragraph note = new Paragraph("Napomena: Proverite da li postoje isporuke u bazi za period od " +
-                    LocalDate.now().minusDays(30).format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) +
-                    " do " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), noteFont);
-            note.setAlignment(Element.ALIGN_CENTER);
-            doc.add(note);
         } else {
-            // Kreiranje tabele za isporuke
-            PdfPTable table = new PdfPTable(7);
+            PdfPTable table = new PdfPTable(4);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{0.8f, 1.2f, 1.5f, 2f, 2f, 1.5f, 1f});
+            table.setWidths(new float[]{2f, 2f, 1.5f, 4f});
 
             // Header tabele
-            String[] headers = {"ID", "Količina (kg)", "Status", "Vreme polaska", "Vreme dolaska"};
+            String[] headers = {"Start", "Destinacija", "Distanca(KM)", "Razlog blokade"};
             for (String header : headers) {
                 PdfPCell headerCell = new PdfPCell(new Phrase(header,
                         FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE)));
@@ -291,55 +284,23 @@ public class ReportService {
                 table.addCell(headerCell);
             }
 
-            // Popunjavanje tabele podacima
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-            double ukupnaKolicina = 0;
-            int brojIsporucenih = 0;
-            int brojHitnih = 0;
 
             //for (Isporuka i : isporuke) {
-            for (IsporukaReportDTO i : isporuke) {
-                // ID
-                table.addCell(createStyledCell("IS-" + i.getId(), Element.ALIGN_CENTER, Color.BLACK));
+            for (RoadInfoDTO r : roads) {
+                table.addCell(createStyledCell(r.getStart(), Element.ALIGN_CENTER, Color.BLACK));
+                table.addCell(createStyledCell(r.getDestination(), Element.ALIGN_CENTER, Color.BLACK));
 
-                // Količina
-                double kolicina = i.getKolicinaKg() != null ? i.getKolicinaKg() : 0;
-                table.addCell(createStyledCell(String.format("%.2f", kolicina), Element.ALIGN_CENTER, Color.BLACK));
-                ukupnaKolicina += kolicina;
-
-                // Status sa bojom
-                String status = i.getStatus() != null ? i.getStatus() : "NEPOZNATO";
-                Color statusColor = getStatusColor(status);
-                table.addCell(createStyledCell(status.toUpperCase(), Element.ALIGN_CENTER, statusColor, true));
-
-                if ("ISPORUCENA".equalsIgnoreCase(status)) {
-                    brojIsporucenih++;
-                }
-
-                // Vreme polaska
-                String polazak = i.getDatumPolaska() != null ?
-                        i.getDatumPolaska().format(formatter) : "N/A";
-                table.addCell(createStyledCell(polazak, Element.ALIGN_CENTER, Color.BLACK));
-
-                // Vreme dolaska
-                String dolazak = i.getDatumDolaska() != null ?
-                        i.getDatumDolaska().format(formatter) : "U TOKU";
-                table.addCell(createStyledCell(dolazak, Element.ALIGN_CENTER, Color.BLACK));
+                double dist = r.getDistanceKm() != null ? r.getDistanceKm() : 0;
+                table.addCell(createStyledCell(String.format("%.2f", dist), Element.ALIGN_CENTER, Color.BLACK));
+                table.addCell(createStyledCell(r.getReason() != null ? r.getReason().toString() : "-", Element.ALIGN_CENTER, Color.BLACK));
 
             }
 
             doc.add(table);
 
-            // Statistika isporuka
             doc.add(Chunk.NEWLINE);
-            createStatisticsBox(doc, "STATISTIKA ISPORUKA", new String[]{
-                    String.format("Ukupan broj isporuka: %d", isporuke.size()),
-                    String.format("Isporučeno: %d (%.1f%%)", brojIsporucenih,
-                            (isporuke.size() > 0 ? (brojIsporucenih * 100.0 / isporuke.size()) : 0)),
-                    String.format("Ukupna količina tereta: %.2f kg", ukupnaKolicina),
-                    String.format("Hitnih isporuka: %d", brojHitnih),
-                    String.format("Prosečna količina po isporuci: %.2f kg",
-                            (isporuke.size() > 0 ? ukupnaKolicina / isporuke.size() : 0))
+            createStatisticsBox(doc, "STATISTIKA", new String[]{
+                    String.format("Ukupan broj kašnjenja: %d", roads.size()),
             }, new Color(230, 240, 255));
         }
 
@@ -363,92 +324,77 @@ public class ReportService {
         intro.setSpacingAfter(20);
         doc.add(intro);
 
-        // Dobavljanje vozila sa statusom u kvaru ili na servisu
-        List<Vozilo> vozilaUKvaru = voziloRepository.findByStatus("u_kvaru");
-        List<Vozilo> vozilaNaServisu = voziloRepository.findByStatus("na_servisu");
+        List<Vozilo> vozilaUKvaru = voziloRepository.findByStatusAndMinKapacitet("u_kvaru", 1000.0);
 
-        // Filtriranje vozila sa kapacitetom > 1000 kg
-        List<Vozilo> kritickaVozilaUKvaru = vozilaUKvaru.stream()
-                .filter(v -> v.getKapacitetKg() > 1000.0)
-                .toList();
+        List<Vozilo> vozilaNaServisu = voziloRepository.findByStatusAndMinKapacitet("na_servisu",1000.0);
 
-        List<Vozilo> kritickaVozilaNaServisu = vozilaNaServisu.stream()
-                .filter(v -> v.getKapacitetKg() > 1000.0)
-                .toList();
 
-        // Kreiranje tabele za vozila u kvaru
-        if (!kritickaVozilaUKvaru.isEmpty()) {
+        if (!vozilaUKvaru.isEmpty()) {
             Font subheaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, new Color(220, 53, 69));
             Paragraph subheader = new Paragraph("VOZILA U KVARU (KAPACITET > 1000 kg)", subheaderFont);
             subheader.setSpacingBefore(10);
             subheader.setSpacingAfter(10);
             doc.add(subheader);
 
-            PdfPTable table = new PdfPTable(7);
+            PdfPTable table = new PdfPTable(4);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{1.5f, 1.5f, 1.5f, 1f, 1.5f, 1.5f, 2f});
+            //table.setWidths(new float[]{1.5f, 1.5f, 1.5f, 1f, 1.5f, 1.5f, 2f});
 
-            String[] headers = {"Registracija", "Marka", "Model", "Kapacitet (kg)", "Registracija"};
+            String[] headers = {"Registracija", "Marka", "Model", "Kapacitet (kg)"};
             for (String header : headers) {
                 table.addCell(createHeaderCell(header));
             }
 
-            for (Vozilo v : kritickaVozilaUKvaru) {
+            for (Vozilo v : vozilaUKvaru) {
                 table.addCell(createStyledCell(v.getRegistracija(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(v.getMarka(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(v.getModel(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(String.format("%.2f", v.getKapacitetKg()),
                         Element.ALIGN_CENTER, Color.RED, true));
-                table.addCell(createStyledCell(v.getRegistracija(),
-                        Element.ALIGN_CENTER, Color.BLACK));
             }
 
             doc.add(table);
 
-            // Upozorenje za vozila u kvaru
             createWarningBox(doc, "HITNA INTERVENCIJA",
                     "Ova vozila su neispravna i zahtevaju hitan servis. " +
                             "Svaki dan zastoja ovih vozila košta kompaniju u gubitku prihoda.",
                     Color.RED);
         }
 
-        // Kreiranje tabele za vozila na servisu
-        if (!kritickaVozilaNaServisu.isEmpty()) {
+        if (!vozilaNaServisu.isEmpty()) {
             Font subheaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, new Color(253, 126, 20));
             Paragraph subheader = new Paragraph("VOZILA NA SERVISU (KAPACITET > 1000 kg)", subheaderFont);
             subheader.setSpacingBefore(20);
             subheader.setSpacingAfter(10);
             doc.add(subheader);
 
-            PdfPTable table = new PdfPTable(7);
+            PdfPTable table = new PdfPTable(4);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{1.5f, 1.5f, 1.5f, 1f, 1.5f, 1.5f, 2f});
+            //table.setWidths(new float[]{1.5f, 1.5f, 1.5f, 1f, 1.5f, 1.5f, 2f});
 
-            String[] headers = {"Registracija", "Marka", "Model", "Kapacitet (kg)", "Registracija"};
+            String[] headers = {"Registracija", "Marka", "Model", "Kapacitet (kg)"};
             for (String header : headers) {
                 table.addCell(createHeaderCell(header));
             }
 
-            for (Vozilo v : kritickaVozilaNaServisu) {
+            for (Vozilo v : vozilaNaServisu) {
                 table.addCell(createStyledCell(v.getRegistracija(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(v.getMarka(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(v.getModel(), Element.ALIGN_CENTER, Color.BLACK));
                 table.addCell(createStyledCell(String.format("%.2f", v.getKapacitetKg()),
                         Element.ALIGN_CENTER, Color.RED, true));
-                table.addCell(createStyledCell(v.getRegistracija(),
-                        Element.ALIGN_CENTER, Color.BLACK));
+
             }
 
             doc.add(table);
 
-            // Preporuka za vozila na servisu
             createWarningBox(doc, "PREPORUKA",
                     "Ova vozila su trenutno na servisu. Preporučuje se praćenje trajanja servisa " +
                             "i planiranje zamenskih vozila ako servis traje duže od planiranog.",
                     new Color(253, 126, 20));
         }
 
-        if (kritickaVozilaUKvaru.isEmpty() && kritickaVozilaNaServisu.isEmpty()) {
+        if (vozilaUKvaru.isEmpty() && vozilaNaServisu.isEmpty()) {
             Font infoFont = FontFactory.getFont(FontFactory.HELVETICA, 12, Color.GREEN);
             Paragraph info = new Paragraph("NEMA KRITIČNIH VOZILA ZA POPRAVKU", infoFont);
             info.setAlignment(Element.ALIGN_CENTER);
@@ -461,7 +407,6 @@ public class ReportService {
     }
 
     private void createVozaciSection(Document doc) throws DocumentException {
-        // Sekcija header
         Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new Color(40, 167, 69));
         Paragraph sectionTitle = new Paragraph("SEKCIJA 3: KLASIFIKACIJA I ANALIZA VOZAČA", sectionFont);
         sectionTitle.setAlignment(Element.ALIGN_LEFT);
@@ -492,7 +437,6 @@ public class ReportService {
             warning.setSpacingAfter(20);
             doc.add(warning);
         } else {
-            // Tabela sa svim vozačima
             PdfPTable table = new PdfPTable(6);
             table.setWidthPercentage(100);
             table.setWidths(new float[]{1.5f, 1.5f, 1.2f, 1.5f, 1.8f, 2f});
@@ -511,16 +455,16 @@ public class ReportService {
                 String bonus;
                 if (rang == 1) {
                     rangColor = new Color(255, 215, 0); // Zlatna
-                    bonus = "BONUS: 500€";
+                    bonus = "BONUS: 300€";
                 } else if (rang == 2) {
                     rangColor = new Color(192, 192, 192); // Srebrna
-                    bonus = "BONUS: 300€";
+                    bonus = "BONUS: 150€";
                 } else if (rang == 3) {
                     rangColor = new Color(205, 127, 50); // Bronzana
-                    bonus = "BONUS: 200€";
+                    bonus = "BONUS: 100€";
                 } else if (rang <= 5) {
                     rangColor = new Color(144, 238, 144); // Sv. zelena
-                    bonus = "BONUS: 100€";
+                    bonus = "BONUS: 70€";
                 } else if (rang <= 10) {
                     rangColor = new Color(173, 216, 230); // Sv. plava
                     bonus = "BONUS: 50€";
@@ -560,10 +504,10 @@ public class ReportService {
             // Objašnjenje bonus sistema
             doc.add(Chunk.NEWLINE);
             createStatisticsBox(doc, "SISTEM BONUSA ZA VOZAČE", new String[]{
-                    "🥇 1. mesto: 500€ (Zlatna boja)",
-                    "🥈 2. mesto: 300€ (Srebrna boja)",
-                    "🥉 3. mesto: 200€ (Bronzana boja)",
-                    "🏆 4.-5. mesto: 100€ (Sv. zelena boja)",
+                    "🥇 1. mesto: 300€ (Zlatna boja)",
+                    "🥈 2. mesto: 150€ (Srebrna boja)",
+                    "🥉 3. mesto: 100€ (Bronzana boja)",
+                    "🏆 4.-5. mesto: 70€ (Sv. zelena boja)",
                     "⭐ 6.-10. mesto: 50€ (Sv. plava boja)",
                     "📊 Ostali: Standardni uslovi"
             }, new Color(240, 255, 240));
@@ -587,7 +531,6 @@ public class ReportService {
         }
     }
 
-    // ================= POMOĆNE METODE ==================
 
     private PdfPCell createStyledCell(String text, int alignment, Color color) {
         return createStyledCell(text, alignment, color, false);
@@ -640,7 +583,6 @@ public class ReportService {
         statsTable.setSpacingBefore(10);
         statsTable.setSpacingAfter(10);
 
-        // Naslov box-a
         PdfPCell titleCell = new PdfPCell(new Phrase(title,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
         titleCell.setBackgroundColor(new Color(41, 128, 185));
@@ -649,7 +591,6 @@ public class ReportService {
         titleCell.setBorderColor(Color.WHITE);
         statsTable.addCell(titleCell);
 
-        // Stavke
         for (String item : items) {
             PdfPCell itemCell = new PdfPCell(new Phrase(item,
                     FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK)));
@@ -668,7 +609,6 @@ public class ReportService {
         warningTable.setSpacingBefore(10);
         warningTable.setSpacingAfter(10);
 
-        // Naslov upozorenja
         PdfPCell titleCell = new PdfPCell(new Phrase("⚠ " + title,
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE)));
         titleCell.setBackgroundColor(color);
@@ -688,7 +628,7 @@ public class ReportService {
         doc.add(warningTable);
     }
 
-    // ================= HEADER I FOOTER HANDLER ==================
+
 
     private static class HeaderFooterHandler extends PdfPageEventHelper {
 
@@ -756,7 +696,6 @@ public class ReportService {
                 cb.showTextAligned(PdfContentByte.ALIGN_CENTER, pageInfo,
                         (document.left() + document.right()) / 2, document.bottom() - 40, 0);
 
-                // Desni footer
                 cb.showTextAligned(PdfContentByte.ALIGN_RIGHT,
                         LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
                         document.right(), document.bottom() - 40, 0);
@@ -764,200 +703,9 @@ public class ReportService {
                 cb.endText();
                 cb.restoreState();
             } catch (Exception e) {
-                // Ignoriši greške u footer-u
+
             }
         }
     }
 }
-    /*public void generateLogisticReport(HttpServletResponse response) {
-        try {
-            response.setContentType("application/pdf");
-            response.setHeader("Content-Disposition", "attachment; filename=logistic_report.pdf");
-
-            Document doc = new Document(PageSize.A4, 40, 40, 60, 40);
-            PdfWriter writer = PdfWriter.getInstance(doc, response.getOutputStream());
-
-            writer.setPageEvent(new FooterHandler());
-
-            doc.open();
-
-            // === COVER PAGE ===
-            Paragraph title = new Paragraph("LOGISTIČKI IZVEŠTAJ",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24));
-            title.setAlignment(Element.ALIGN_CENTER);
-            title.setSpacingBefore(150);
-
-            Paragraph subtitle = new Paragraph("Isporuke • Vozila • Analitika vozača",
-                    FontFactory.getFont(FontFactory.HELVETICA, 14));
-            subtitle.setAlignment(Element.ALIGN_CENTER);
-
-            Paragraph date = new Paragraph("Datum generisanja: " + LocalDate.now(),
-                    FontFactory.getFont(FontFactory.HELVETICA, 12));
-            date.setAlignment(Element.ALIGN_CENTER);
-            date.setSpacingBefore(20);
-
-            doc.add(title);
-            doc.add(subtitle);
-            doc.add(date);
-
-            doc.newPage();
-
-            // === SECTION 1 — SIMPLE ===
-            addSectionHeader(doc, "1. Isporuke po datumu polaska");
-
-            // koristiš svoj query sa datetime($start) → šaljemo ISO string
-            List<Isporuka> isporuke =
-                    isporukaRepository.findIsporukeFromDate(LocalDate.now().minusDays(30).toString());
-
-            PdfPTable t1 = new PdfPTable(new float[]{1, 1, 1, 1, 1, 1});
-            t1.setWidthPercentage(100);
-
-            addTableHeader(t1, new String[]{"ID", "Količina", "Status", "Polazak", "Dolazak", "Ruta"});
-
-            for (Isporuka i : isporuke) {
-                t1.addCell(cell(i.getId().toString()));
-                t1.addCell(cell(i.getKolicinaKg() + " kg"));
-                t1.addCell(cell(i.getStatus()));
-                t1.addCell(cell(i.getDatumPolaska().toString()));
-                t1.addCell(cell(i.getDatumDolaska() != null ? i.getDatumDolaska().toString() : "-"));
-                t1.addCell(cell("Ruta "+ i.getRoute().getId().toString()));
-            }
-
-            doc.add(t1);
-            doc.newPage();
-
-            // === SECTION 2 — SIMPLE ===
-            addSectionHeader(doc, "2. Vozila po statusu i minimalnom kapacitetu");
-
-            List<Vozilo> vozila =
-                    voziloRepository.findByStatusAndMinKapacitet("slobodno", 1000.0);
-
-            PdfPTable t2 = new PdfPTable(new float[]{1.3f, 1, 1, 1, 1});
-            t2.setWidthPercentage(100);
-
-            addTableHeader(t2, new String[]{"Registracija", "Marka", "Model", "Kapacitet", "Status"});
-
-            for (Vozilo v : vozila) {
-                t2.addCell(cell(v.getRegistracija()));
-                t2.addCell(cell(v.getMarka()));
-                t2.addCell(cell(v.getModel()));
-                t2.addCell(cell(v.getKapacitetKg() + " kg"));
-
-                Color color = switch (v.getStatus()) {
-                    case "u_kvaru" -> Color.RED;
-                    case "na_servisu" -> Color.ORANGE;
-                    default -> Color.GREEN;
-                };
-
-                PdfPCell statusCell = new PdfPCell(new Phrase(v.getStatus()));
-                statusCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                statusCell.setPhrase(new Phrase(v.getStatus(),
-                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, color)));
-
-                t2.addCell(statusCell);
-            }
-
-            doc.add(t2);
-
-            // warnings
-            boolean imaKvar = vozila.stream().anyMatch(v -> v.getStatus().equals("u_kvaru"));
-            boolean imaServis = vozila.stream().anyMatch(v -> v.getStatus().equals("na_servisu"));
-
-            if (imaKvar) {
-                doc.add(new Paragraph("❗ Hitna napomena: Postoje vozila u kvaru!",
-                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.RED)));
-            }
-            if (imaServis) {
-                doc.add(new Paragraph("⚠ Napomena: Neka vozila su na servisu.",
-                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.ORANGE)));
-            }
-
-            doc.newPage();
-
-            // === SECTION 3 — COMPLEX ===
-            addSectionHeader(doc, "3. Analiza vozača i preporuka");
-
-            List<Map<String, Object>> vozaci =
-                    vozacRepository.recommendDrivers(
-                            LocalDate.now().minusDays(60).toString(),
-                            LocalDate.now().toString(),
-                            10
-                    );
-
-            PdfPTable t3 = new PdfPTable(new float[]{1, 1, 1, 1});
-            t3.setWidthPercentage(100);
-
-            addTableHeader(t3, new String[]{"Ime", "Prezime", "Vožnji", "Prosek rute"});
-
-            for (Map<String, Object> m : vozaci) {
-                t3.addCell(cell(m.get("ime").toString()));
-                t3.addCell(cell(m.get("prezime").toString()));
-                t3.addCell(cell(m.get("brVoznji").toString()));
-                t3.addCell(cell(m.get("avgRouteDistance") + " km"));
-            }
-
-            doc.add(t3);
-
-            if (!vozaci.isEmpty()) {
-                Map<String, Object> best = vozaci.get(0);
-                doc.add(new Paragraph(
-                        "Preporučeni vozač: " + best.get("ime") + " " + best.get("prezime"),
-                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.BLUE)
-                ));
-            }
-
-            doc.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ================= UTILITIES ==================
-
-    private void addSectionHeader(Document doc, String text) {
-        Paragraph p = new Paragraph(text,
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLUE));
-        p.setSpacingAfter(10);
-        doc.add(p);
-    }
-
-    private PdfPCell cell(String text) {
-        PdfPCell c = new PdfPCell(new Phrase(text));
-        c.setHorizontalAlignment(Element.ALIGN_CENTER);
-        return c;
-    }
-
-    private void addTableHeader(PdfPTable table, String[] headers) {
-        for (String h : headers) {
-            PdfPCell cell = new PdfPCell(new Phrase(h,
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD)));
-            cell.setBackgroundColor(new Color(220, 220, 220));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            table.addCell(cell);
-        }
-    }
-
-    // ================= FOOTER ==================
-
-    private static class FooterHandler extends PdfPageEventHelper {
-        @Override
-        public void onEndPage(PdfWriter writer, Document document) {
-            Rectangle rect = writer.getPageSize();
-
-            Phrase footer = new Phrase(
-                    "Strana " + writer.getPageNumber(),
-                    FontFactory.getFont(FontFactory.HELVETICA, 9)
-            );
-
-            ColumnText.showTextAligned(
-                    writer.getDirectContent(),
-                    Element.ALIGN_CENTER,
-                    footer,
-                    rect.getWidth() / 2,   // sredina strane
-                    20,                    // 20px od dna
-                    0
-            );
-        }
-    }*/
 

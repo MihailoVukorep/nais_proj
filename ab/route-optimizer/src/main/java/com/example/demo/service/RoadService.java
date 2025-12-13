@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.RoadInfoDTO;
 import com.example.demo.model.Location;
 import com.example.demo.model.Road;
 import com.example.demo.repository.LocationRepository;
@@ -274,5 +275,37 @@ public class RoadService {
 
     public List<Road> findShortestPath(Long fromLocationId, Long toLocationId) {
         return roadCustomRepository.findShortestPath(fromLocationId, toLocationId);
+    }
+    public List<RoadInfoDTO> findBlocked(){
+        String query = """
+                MATCH (from:Location)-[r:ROAD]-(to:Location)
+                        WHERE r.blocked = true
+                        RETURN DISTINCT
+                       CASE WHEN from.name < to.name THEN from.name ELSE to.name END as city1,
+                       CASE WHEN from.name < to.name THEN to.name ELSE from.name END as city2,
+                       r.distanceKm as distanceKm,
+                       r.durationHours as durationHours,
+                       r.blocked as blocked,
+                       r.reason as reason
+                """;
+        try (Session session = driver.session()) {
+            Result result = session.run(query);
+
+            return result.list().stream()
+                    .map(record -> {
+                        RoadInfoDTO road = new RoadInfoDTO();
+                        road.setDistanceKm(record.get("distanceKm").asDouble());
+                        road.setDurationHours(record.get("durationHours").asDouble());
+                        road.setBlocked(record.get("blocked").asBoolean());
+                        road.setReason(record.get("reason").asString(null));
+                        road.setStart(record.get("city1").asString());
+                        road.setDestination(record.get("city2").asString());
+                        //road.setStart(record.get("start").asString());
+                        //road.setDestination(record.get("destination").asString());
+
+                        return road;
+                    })
+                    .collect(Collectors.toList());
+        }
     }
 }

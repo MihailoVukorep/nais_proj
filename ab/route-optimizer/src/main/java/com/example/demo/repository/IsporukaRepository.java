@@ -144,21 +144,21 @@ public interface IsporukaRepository extends Neo4jRepository<Isporuka, Long> {
 
     @Query("""
         MATCH (i:Isporuka)
-        WHERE i.datumPolaska >= date($startDate)
+        WHERE i.datumPolaska >= date($startDate) AND i.datumPolaska IS NOT NULL
         RETURN i.status AS status,
-               i.kolicinaKg AS kolicinaKg,
-               i.datumPolaska AS datumPolaska,
-               i.datumDolaska AS datumDolaska
-        ORDER BY i.datumPolaska DESC
+               i.kolicinaKg AS kolicinaKg
     """)
     List<IsporukaReportDTO> findIsporukeSimpleDTO(@Param("startDate") LocalDate startDate);
-   /* @Query("""
+    //i.datumPolaska AS datumPolaska,
+    //i.datumDolaska AS datumDolaska
+    //ORDER BY i.datumPolaska DESC
+    @Query("""
     MATCH (i:Isporuka)
     WHERE i.datumPolaska >= $start
     RETURN i ORDER BY i.datumPolaska
 """)
     List<Isporuka> findIsporukeFromDate(@Param("start") LocalDate startDate);
-    @Query("""
+    /*@Query("""
     MATCH (i:Isporuka)
     WHERE i.datumPolaska >= datetime($start)
     RETURN i ORDER BY i.datumPolaska

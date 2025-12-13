@@ -39,7 +39,12 @@ spring:
     authentication:
       username: neo4j
       password: password
-
+      spring:
+        data:
+          neo4j:
+            repositories:
+              enabled=true:
+            open-in-view=false:
 external:
   django:
     base-url: http://host.docker.internal:8000

@@ -1,5 +1,6 @@
 package com.example.demo.dto;
 
+import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,12 +14,10 @@ public class IsporukaReportDTO {
     private String brojIsporuke;
     private String status;
     private Double kolicinaKg;
+    @Nullable
     private LocalDate datumPolaska;
+    @Nullable
     private LocalDate datumDolaska;
-    private String adresaPolaska;
-    private String adresaDostave;
-    private Double vrednost;
-    private Boolean hitnaDostava;
     private Long routeId;
     private String routeName;
 
@@ -45,22 +44,6 @@ public class IsporukaReportDTO {
 
     public void setRouteName(String routeName) {
         this.routeName = routeName;
-    }
-
-    public String getAdresaDostave() {
-        return adresaDostave;
-    }
-
-    public void setAdresaDostave(String adresaDostave) {
-        this.adresaDostave = adresaDostave;
-    }
-
-    public String getAdresaPolaska() {
-        return adresaPolaska;
-    }
-
-    public void setAdresaPolaska(String adresaPolaska) {
-        this.adresaPolaska = adresaPolaska;
     }
 
     public LocalDate getDatumDolaska() {

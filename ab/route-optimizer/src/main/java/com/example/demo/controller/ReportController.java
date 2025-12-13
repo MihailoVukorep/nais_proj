@@ -27,7 +27,8 @@ public class ReportController {
     @GetMapping("/save")
     public ResponseEntity<?> generateAndSaveReport() {
         try {
-            byte[] pdf = reportService.generateSimpleReportBytes();
+            //byte[] pdf = reportService.generateSimpleReportBytes();
+            byte[] pdf = reportService.generateLogisticReport();
 
             String path = "C:/reports/logistic_report_" + System.currentTimeMillis() + ".pdf";
 
@@ -53,11 +54,12 @@ public class ReportController {
     @GetMapping("/logistic")
     public ResponseEntity<byte[]> generateLogisticReport() {
         try {
-            byte[] pdfBytes = reportService.generateLogisticReport();
+            byte[] pdfBytes = reportService.generateSimpleReportBytes();
 
             String filename = "logistic_report_" +
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
 
+            reportService.saveReport(pdfBytes, filename);
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,
                             "attachment; filename=\"" + filename + "\"")
@@ -70,40 +72,4 @@ public class ReportController {
         }
     }
 
-    @GetMapping("/logistic/stream")
-    public ResponseEntity<byte[]> generateLogisticReportStream() {
-        try {
-            byte[] pdfBytes = reportService.generateLogisticReport();
-
-            String filename = "logistic_report_" +
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + filename + "\"")
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body(pdfBytes);
-
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(("Greška: " + e.getMessage()).getBytes());
-        }
-    }
-
-    /*@GetMapping("/report/logistic")
-    public void generateLogisticReport(HttpServletResponse response) {
-        reportService.generateLogisticReport(response);
-    }
-    @GetMapping("/reports/save")
-    public ResponseEntity<?> savePdfToDisk() {
-        try {
-            String path = reportService.saveReportToLocalDisk();
-            return ResponseEntity.ok(
-                    Map.of("success", true, "message", "PDF sačuvan.", "path", path)
-            );
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", e.getMessage()));
-        }
-    }*/
 }
