@@ -30,7 +30,7 @@ public class RoadService {
 
     public Road createRoad(Long fromLocationId, Long toLocationId,
                            Double distanceKm, Double durationHours) {
-        String query = """
+        /*String query = """
             MATCH (from:Location), (to:Location)
             WHERE id(from) = $fromId AND id(to) = $toId
             MERGE (from)-[r:ROAD {
@@ -38,6 +38,16 @@ public class RoadService {
                 durationHours: $durationHours,
                 blocked: false,
                 reason: null
+            }]->(to)
+            RETURN r, id(r) as roadId
+            """;*/
+        String query = """
+            MATCH (from:Location), (to:Location)
+            WHERE id(from) = $fromId AND id(to) = $toId
+            MERGE (from)-[r:ROAD {
+                distanceKm: $distanceKm,
+                durationHours: $durationHours,
+                blocked: false
             }]->(to)
             RETURN r, id(r) as roadId
             """;
@@ -75,7 +85,7 @@ public class RoadService {
         String query = """
             MATCH (from:Location)-[r:ROAD]->(to:Location)
             WHERE id(from) = $fromId AND id(to) = $toId
-            RETURN r, id(r) as roadId
+            RETURN r, id(r) as id
             """;
 
         try (Session session = driver.session()) {

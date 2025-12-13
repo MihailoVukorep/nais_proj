@@ -57,7 +57,7 @@ public class LocationController {
         }
         return ResponseEntity.badRequest().body("Azuriranje neuspesno.");
     }*/
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @RequestBody Location location) {
         try {

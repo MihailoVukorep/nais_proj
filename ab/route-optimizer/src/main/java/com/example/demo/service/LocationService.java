@@ -19,8 +19,8 @@ public class LocationService {
     public void create(String name, Double lat, Double lon){
         locationRepository.createLocation(name, lat, lon);
     }
-    public void update(Long id, Double lat, Double lon){
-        locationRepository.updateLocation(id, lat, lon);
+    public void update(Long id, String name, Double lat, Double lon){
+        locationRepository.updateLocation(id, name, lat, lon);
     }
     public List<Location> findNeighbors(String name){
         return locationRepository.neighborsOf(name);

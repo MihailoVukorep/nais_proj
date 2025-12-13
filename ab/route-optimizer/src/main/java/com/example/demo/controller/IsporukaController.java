@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.IsporukaDTO;
 import com.example.demo.model.Isporuka;
 import com.example.demo.service.IsporukaService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,8 @@ public class IsporukaController {
     @GetMapping
     public ResponseEntity<?> getAll() {
         try {
-            List<Isporuka> isporuke = isporukaService.findAll();
+            //List<Isporuka> isporuke = isporukaService.findAll();
+            List<IsporukaDTO> isporuke = isporukaService.findAll();
             return ResponseEntity.ok(isporuke);
         } catch (Exception e) {
             return ResponseEntity.internalServerError()

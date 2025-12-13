@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.neo4j.core.schema.*;
 
 import java.time.Instant;
@@ -18,13 +19,15 @@ public class Isporuka {
     private LocalDateTime datumPolaska;
     private LocalDateTime datumDolaska;
 
-    // veze
+    @JsonIgnore
     @Relationship(type = "USES_VEHICLE", direction = Relationship.Direction.OUTGOING)
     private Vozilo vozilo;
 
+    @JsonIgnore
     @Relationship(type = "DRIVEN_BY", direction = Relationship.Direction.OUTGOING)
     private Vozac vozac;
 
+    @JsonIgnore
     @Relationship(type = "ON_ROUTE", direction = Relationship.Direction.OUTGOING)
     private Route route;
 

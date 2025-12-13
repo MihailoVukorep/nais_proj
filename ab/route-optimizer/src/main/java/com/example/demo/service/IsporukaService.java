@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.IsporukaDTO;
 import com.example.demo.model.Isporuka;
 import com.example.demo.repository.IsporukaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,10 +32,12 @@ public class IsporukaService {
         Optional<Isporuka> isporuka = isporukaRepository.findById(id);
         return isporuka.orElse(null);
     }
-
-    public List<Isporuka> findAll() {
-        return isporukaRepository.findAll();
+    public List<IsporukaDTO> findAll() {
+        return isporukaRepository.findAllDTO();
     }
+    /*public List<Isporuka> findAll() {
+        return isporukaRepository.findAll();
+    }*/
 
     public List<Isporuka> findByStatus(String status) {
         return isporukaRepository.findByStatus(status);

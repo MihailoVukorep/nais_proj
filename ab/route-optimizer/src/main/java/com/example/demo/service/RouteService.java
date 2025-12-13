@@ -395,8 +395,6 @@ public class RouteService {
                 r.durationHours = $durationHours, 
                 r.status = $status
             WITH r
-            
-            // Ukloni postojeće veze ka lokacijama
             OPTIONAL MATCH (r)-[s:STARTS_AT]->()
             DELETE s
             WITH r

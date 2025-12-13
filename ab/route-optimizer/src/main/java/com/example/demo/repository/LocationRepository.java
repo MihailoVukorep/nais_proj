@@ -28,10 +28,11 @@ public interface LocationRepository extends Neo4jRepository<Location, Long> {
     @Query("""
         MATCH (l:Location) 
         WHERE id(l) = $id
-        SET l.lat = $lat, l.lon = $lon
+        SET l.name = $name, l.lat = $lat, l.lon = $lon
         RETURN l
     """)
     Location updateLocation(@Param("id") Long id,
+                            @Param("name") String name,
                             @Param("lat") Double lat,
                             @Param("lon") Double lon);
 

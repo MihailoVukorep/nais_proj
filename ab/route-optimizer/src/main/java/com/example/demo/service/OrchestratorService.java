@@ -57,8 +57,8 @@ public class OrchestratorService {
                 "marka", req.getMarka(),
                 "model", req.getModel(),
                 //"registracija", req.getRegistracija(),
-                "registracija", "2026-12-12",  //u django je polje registracija datum
-               // "registracija", LocalDate.now().plusYears(1),  //u django je polje registracija datum
+                //"registracija", "2026-12-12",  //u django je polje registracija datum
+                "registracija", LocalDate.now().plusYears(1),  //u django je polje registracija datum
                 "kapacitet", req.getKapacitetKg(),
                 "status", req.getStatus()
         );

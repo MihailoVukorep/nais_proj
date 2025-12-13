@@ -85,4 +85,14 @@ public interface VoziloRepository extends Neo4jRepository<Vozilo, Long> {
     """)
     List<Vozilo> findByStatusAndKapacitet(@Param("status") String status,
                                           @Param("minKapacitet") Double minKapacitet);
+
+    @Query("""
+    MATCH (v:Vozilo)
+    WHERE v.status = $status AND v.kapacitetKg >= $minKapacitet
+    RETURN v
+    ORDER BY v.kapacitetKg DESC
+""")
+    List<Vozilo> findByStatusAndMinKapacitet(@Param("status") String status,
+                                             @Param("minKapacitet") Double minKapacitet);
+
 }

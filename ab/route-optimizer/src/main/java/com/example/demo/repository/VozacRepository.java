@@ -1,5 +1,6 @@
 package com.example.demo.repository;
 
+import com.example.demo.dto.DriverAnalyticsDTO;
 import com.example.demo.model.Vozac;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
@@ -7,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface VozacRepository extends Neo4jRepository<Vozac, Long> {
@@ -67,4 +69,18 @@ public interface VozacRepository extends Neo4jRepository<Vozac, Long> {
 
     @Query("MATCH (v:Vozac) WHERE v.brVoznji > $minVoznji RETURN v ORDER BY v.brVoznji DESC")
     List<Vozac> findByBrojVoznjiGreaterThan(@Param("minVoznji") Integer minVoznji);
+
+    @Query("""
+      MATCH (v:Vozac)<-[:DRIVEN_BY]-(isp:Isporuka)-[:ON_ROUTE]->(r:Route)
+      WHERE (isp.datumKreiranja >= datetime($from) AND isp.datumKreiranja <= datetime($to))
+      WITH v, COUNT(isp) AS brojVoznji, avg(r.distanceKm) AS avgDistance
+      WHERE brojVoznji > 0
+      WITH v, brojVoznji, avgDistance, (toFloat(brojVoznji) * coalesce(avgDistance,0.0)) AS score
+      RETURN v.ime AS ime, v.prezime AS prezime, brojVoznji AS brVoznji, avgDistance AS avgRouteDistance, score
+      ORDER BY score DESC
+      LIMIT $limit
+    """)
+    List<DriverAnalyticsDTO> recommendDrivers(@Param("from") String fromIso,
+                                              @Param("to") String toIso,
+                                              @Param("limit") Integer limit);
 }
