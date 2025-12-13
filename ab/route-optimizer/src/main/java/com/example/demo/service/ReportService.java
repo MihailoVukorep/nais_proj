@@ -187,13 +187,10 @@ public class ReportService {
 
             createTitlePage(doc);
 
-            // === SEKCIJA 1: PREGLED ISPORUKA U PRETHODNIH 30 DANA ===
             createIsporukeSection(doc);
 
-            // === SEKCIJA 2: VOZILA ZA HITNU POPRAVKU ===
             createVozilaSection(doc);
 
-            // === SEKCIJA 3: ANALIZA I KLASIFIKACIJA VOZAČA ===
             createVozaciSection(doc);
 
             doc.close();
@@ -462,10 +459,10 @@ public class ReportService {
                 } else if (rang == 3) {
                     rangColor = new Color(205, 127, 50); // Bronzana
                     bonus = "BONUS: 100€";
-                } else if (rang <= 5) {
+                } else if (rang == 4) {
                     rangColor = new Color(144, 238, 144); // Sv. zelena
                     bonus = "BONUS: 70€";
-                } else if (rang <= 10) {
+                } else if (rang == 5) {
                     rangColor = new Color(173, 216, 230); // Sv. plava
                     bonus = "BONUS: 50€";
                 } else {
